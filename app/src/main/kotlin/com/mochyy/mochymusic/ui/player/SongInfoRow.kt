@@ -215,8 +215,12 @@ fun SongInfoRow(
             if (sideAction == com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.LIKE) {
                 PressScaleActionButton(
                     icon = if (trackInfo.liked) R.drawable.ic_untitled_heart else R.drawable.ic_untitled_heart_unfill,
-                    tint = if (trackInfo.liked) Color.White else Color.White.copy(alpha = 0.85f),
-                    containerColor = if (trackInfo.liked) Color.White.copy(alpha = 0.30f) else Color.White.copy(alpha = 0.15f),
+                    tint = if (trackInfo.liked) Color.White else com.mochyy.mochymusic.ui.component.AppleMusicAccent,
+                    containerColor = if (trackInfo.liked) {
+                        com.mochyy.mochymusic.ui.component.AppleMusicAccent
+                    } else {
+                        com.mochyy.mochymusic.ui.component.AppleMusicAccent.copy(alpha = 0.22f)
+                    },
                     onClick = {
                         if (likeBurst != null) {
                             likeBurst.likeFromButton(LikeSlot.PLAYER, trackInfo.liked, playerConnection::toggleLike)

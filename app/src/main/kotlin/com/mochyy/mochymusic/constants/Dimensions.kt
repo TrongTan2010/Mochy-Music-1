@@ -44,11 +44,11 @@ val NavigationBarAnimationSpec = spring<Dp>(
 )
 
 val BottomSheetAnimationSpec = spring<Dp>(
-    dampingRatio = Spring.DampingRatioNoBouncy,
-    stiffness = Spring.StiffnessMediumLow
+    dampingRatio = 0.86f,
+    stiffness = 300f
 )
 
 val BottomSheetSoftAnimationSpec = spring<Dp>(
-    dampingRatio = Spring.DampingRatioNoBouncy,
-    stiffness = Spring.StiffnessLow
+    dampingRatio = 0.88f,
+    stiffness = 240f
 )

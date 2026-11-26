@@ -109,7 +109,7 @@ private val LyricsWaitingDrop = 3.dp
 private val LyricsFontSize = 32.sp
 private val LyricsLineHeight = 40.sp
 
-private val BlurStageRadii = floatArrayOf(0f, 5f, 12f)
+private val BlurStageRadii = floatArrayOf(0f, 5.5f, 13f)
 
 private const val BlurQuantStepPx = 0.5f
 private val BlurEffectCache: Array<androidx.compose.ui.graphics.RenderEffect?> =
@@ -328,6 +328,20 @@ fun LyricsGlowLine(
     // a word-timed line sweeps while it's sung, the only kind whose words still to come stay dim
     val sweepsWords = !words.isNullOrEmpty() && leadText.isNotEmpty()
     val hasRuby = !ruby.isNullOrEmpty()
+    val (lyricsBoldness) = com.mochyy.mochymusic.utils.rememberPreference(
+        com.mochyy.mochymusic.constants.LyricsBoldnessKey,
+        defaultValue = 2,
+    )
+    val effectiveRestingWeight = when (lyricsBoldness) {
+        0 -> FontWeight.Medium
+        1 -> FontWeight.SemiBold
+        else -> LyricsRestingWeight
+    }
+    val effectiveSungWeight = when (lyricsBoldness) {
+        0 -> FontWeight.Bold
+        1 -> FontWeight.Bold
+        else -> LyricsSungWeight
+    }
     val leadStyle = MaterialTheme.typography.headlineSmall.copy(
         fontSize = LyricsFontSize,
         lineHeight = if (hasRuby) (LyricsLineHeight.value + RubyHeadroomSp).sp else LyricsLineHeight,
@@ -335,7 +349,7 @@ fun LyricsGlowLine(
         textAlign = textAlign,
     ).withLetterMotionFeatures(wordMotion)
     // kept above the sweep/plain switch, so the line already has its bold breaks the moment it goes plain again
-    val steadyWrap = rememberSteadyWrap(leadText, leadStyle.copy(fontWeight = LyricsSungWeight))
+    val steadyWrap = rememberSteadyWrap(leadText, leadStyle.copy(fontWeight = effectiveSungWeight))
 
     // the row's own frame, so a centred or right-aligned line can say where its words start inside it
     val rowCoords = remember { arrayOfNulls<androidx.compose.ui.layout.LayoutCoordinates>(1) }
@@ -450,7 +464,7 @@ fun LyricsGlowLine(
                 // The rise is drawn, not shaded, so it runs with the shader setting off too.
                 riseAmplitudeProvider = { waveAmplitudeState.value },
                 motionStyle = motionStyle,
-                fontWeight = LyricsSungWeight,
+                fontWeight = effectiveSungWeight,
                 baseColor = unsungColor,
 
                 highlightColor = Color.White,
@@ -473,7 +487,7 @@ fun LyricsGlowLine(
                 // same characters as the lead text, with a line break wherever the bold line wraps
                 text = steadyWrap.text,
                 style = leadStyle.copy(
-                    fontWeight = if (state == LyricsLineState.ACTIVE) LyricsSungWeight else LyricsRestingWeight,
+                    fontWeight = if (state == LyricsLineState.ACTIVE) effectiveSungWeight else effectiveRestingWeight,
                 ),
                 color = textColor,
                 // No maxLines cap. A capped line ellipsised into "..." and simply lost the rest of

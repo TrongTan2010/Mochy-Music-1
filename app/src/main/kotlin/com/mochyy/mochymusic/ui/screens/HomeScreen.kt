@@ -1460,7 +1460,7 @@ fun HomeScreen(
                             recentlyPlayed?.takeIf { it.isNotEmpty() }?.let { items ->
                                 homeItem("recently_played_title", revealSeen, "title") {
                                     HomeSectionTitle(
-                                        title = stringResource(R.string.recently_played),
+                                        title = "Nghe gần đây",
                                         onClick = { navController.navigate("section_detail/recently_played") }
                                     )
                                 }
@@ -1838,40 +1838,30 @@ fun HomeScreen(
                         label = "topBarProgress"
                     )
 
-                    // the brand mark over the hero, swapped for a bold "Home" once the hero scrolls away.
-                    // it's also where the launch intro lands the splash mark
-                    Box(contentAlignment = Alignment.CenterStart) {
+                    // Apple Music iOS 18 style bold "Trang chủ" header always visible at top left
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_mochy_mark),
                             contentDescription = "Mochy",
-                            tint = Color.White,
+                            tint = com.mochyy.mochymusic.ui.component.AppleMusicAccent,
                             modifier = Modifier
                                 .launchMarkTarget()
-                                .size(HomeMarkWidth, HomeMarkHeight)
-                                .graphicsLayer {
-                                    alpha = 1f - topBarProgress
-                                    val scale = 1f - topBarProgress * 0.25f
-                                    scaleX = scale
-                                    scaleY = scale
-                                    transformOrigin = TransformOrigin(0f, 0.5f)
-                                    renderEffect = BlurEffectCache.element(topBarProgress * 15f)
-                                }
+                                .size(24.dp, 26.dp)
                         )
 
                         Text(
-                            text = stringResource(R.string.home),
+                            text = "Trang chủ",
                             style = TextStyle(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 32.sp,
-                                letterSpacing = (-0.06).em,
+                                fontSize = 30.sp,
+                                letterSpacing = (-0.04).em,
                             ),
                             color = Color.White,
                             maxLines = 1,
-                            modifier = Modifier.graphicsLayer {
-                                alpha = topBarProgress
-                                renderEffect = BlurEffectCache.element((1f - topBarProgress) * 15f)
-                            }
                         )
                     }
 

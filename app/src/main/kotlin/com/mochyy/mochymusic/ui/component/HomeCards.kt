@@ -452,7 +452,7 @@ fun HomeTrackRow(
                 text = title,
                 songId = songId,
                 style = HomeCardTitleStyle.copy(fontSize = 15.sp),
-                color = if (isActive) Color.White else Color.White.copy(alpha = 0.92f),
+                color = if (isActive) AppleMusicAccent else Color.White.copy(alpha = 0.92f),
             )
             if (!subtitle.isNullOrEmpty()) {
                 Text(

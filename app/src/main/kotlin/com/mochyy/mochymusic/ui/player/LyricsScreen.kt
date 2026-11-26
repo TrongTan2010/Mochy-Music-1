@@ -61,6 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -307,7 +308,7 @@ fun LyricsScreen(
             when {
                 timed.isEmpty() -> LyricsUtils.parsePlainLyrics(raw) to true
                 LyricsUtils.isUnsynced(timed) -> timed to true
-                else -> timed to false
+                else -> LyricsUtils.ensureWordTimestamps(timed) to false
             }
         }
     }
@@ -409,8 +410,9 @@ fun LyricsScreen(
     }
 
     var immersive by remember { mutableStateOf(false) }
+    var lastTouchTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
 
-    LaunchedEffect(immersive, listState) {
+    LaunchedEffect(immersive, lastTouchTick, listState) {
         if (immersive) return@LaunchedEffect
         snapshotFlow { userScrollingState.value }.collectLatest { scrolling ->
             if (!scrolling) {
@@ -441,7 +443,10 @@ fun LyricsScreen(
     // kept as State so the 420ms hide/show only relayouts the list inset instead of recomposing LyricsScreen every frame
     val immersion = animateFloatAsState(
         targetValue = if (immersive) 1f else 0f,
-        animationSpec = tween(durationMillis = 420, easing = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)),
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = 0.88f,
+            stiffness = 240f,
+        ),
         label = "lyricsImmersion",
     )
 
@@ -491,7 +496,10 @@ fun LyricsScreen(
                 androidx.compose.animation.core.animate(
                     initialValue = 0f,
                     targetValue = distance,
-                    animationSpec = tween(durationMillis = RecenterDurationMs, easing = recenterEasingFor(motionStyle)),
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = 0.86f,
+                        stiffness = 210f,
+                    ),
                 ) { value, _ ->
                     val consumed = scrollBy(value - previous)
                     previous += consumed
@@ -597,13 +605,37 @@ fun LyricsScreen(
         )
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                        if (event.type == androidx.compose.ui.input.pointer.PointerEventType.Press) {
+                            if (immersive) immersive = false
+                            lastTouchTick++
+                        }
+                    }
+                }
+            }
+    ) {
 
         if (showHeader) Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
                 .stableStatusBarsPadding()
+                .layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints)
+                    val visibleFraction = (1f - immersion.value).coerceIn(0f, 1f)
+                    val targetHeight = (placeable.height * visibleFraction).roundToInt()
+                    layout(placeable.width, targetHeight) {
+                        placeable.placeWithLayer(0, targetHeight - placeable.height) {
+                            alpha = visibleFraction
+                        }
+                    }
+                }
                 .padding(horizontal = LyricsHeaderArtX)
                 // Matches where the morph layer actually draws the cover, so the hitbox sits on
                 // the artwork and the menu centres against it.

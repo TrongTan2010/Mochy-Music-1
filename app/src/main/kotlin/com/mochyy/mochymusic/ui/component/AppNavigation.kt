@@ -358,7 +358,12 @@ internal fun RowScope.NavTab(
     } else {
         if (screen == Screens.Home || screen == Screens.Search) 22.dp else 24.dp
     }
-    val labelText = stringResource(screen.titleId)
+    val labelText = when (screen) {
+        Screens.Home -> "Trang chủ"
+        Screens.Search -> "Tìm kiếm"
+        Screens.Library -> "Thư viện"
+        Screens.Settings -> "Cài đặt"
+    }
 
     Box(
         modifier = Modifier

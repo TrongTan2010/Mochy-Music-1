@@ -443,6 +443,39 @@ object LyricsUtils {
         }
     }
 
+    /**
+     * Ensures every synced lyric line has word-by-word [WordTimestamp]s for Apple Music karaoke
+     * sweep highlighting. Lines that already carry word timestamps are untouched; line-synced
+     * LRC entries have their words split and timed proportionally across the line's duration.
+     */
+    fun ensureWordTimestamps(entries: List<LyricsEntry>): List<LyricsEntry> {
+        if (entries.isEmpty() || isUnsynced(entries)) return entries
+        return entries.mapIndexed { index, entry ->
+            if (!entry.words.isNullOrEmpty() || entry.text.isBlank()) return@mapIndexed entry
+            val tokens = entry.text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+            if (tokens.isEmpty()) return@mapIndexed entry
+            val startMs = entry.time.coerceAtLeast(0L)
+            val nextTimeMs = entries.getOrNull(index + 1)?.time ?: (startMs + 4_000L)
+            val durationMs = (nextTimeMs - startMs - 140L).coerceIn(800L, 4_800L)
+            val totalWeight = tokens.sumOf { it.length.coerceAtLeast(1) }.toDouble().coerceAtLeast(1.0)
+            var cursorSec = startMs / 1000.0
+            val totalSec = durationMs / 1000.0
+            val synthesized = tokens.mapIndexed { wordIdx, token ->
+                val weight = token.length.coerceAtLeast(1) / totalWeight
+                val wordDur = totalSec * weight
+                val wordStart = cursorSec
+                val wordEnd = if (wordIdx == tokens.lastIndex) {
+                    (startMs + durationMs) / 1000.0
+                } else {
+                    cursorSec + wordDur
+                }
+                cursorSec = wordEnd
+                WordTimestamp(text = token, startTime = wordStart, endTime = wordEnd)
+            }
+            entry.copy(words = synthesized)
+        }
+    }
+
     // set by the lyrics page once it has laid lines out: works out where each of a song's lines wraps, off the main thread
     @Volatile
     var lineWarmer: ((List<LyricsEntry>) -> Unit)? = null

@@ -165,13 +165,79 @@ internal fun FlagshipBottomBar(
                 .fillMaxWidth()
                 .height(PillTouchHeight),
         ) {
-            OutputPill(onClick = { onAction(PlayerMenuAction.OUTPUT) }, modifier = Modifier.weight(1f, fill = false))
-            Spacer(Modifier.width(12.dp))
-            PagesPill(
-                isActive = isActive,
-                onAction = onAction,
-                onPageFrom = onPageFrom,
-                pages = pages,
+            val lyricsActive = isActive(PlayerMenuAction.LYRICS)
+            val queueActive = isActive(PlayerMenuAction.QUEUE)
+
+            // Left: Lyrics button (glowing Coral Red when active)
+            BottomToolButton(
+                icon = R.drawable.flagship_lyrics,
+                label = "Lời bài hát",
+                active = lyricsActive,
+                onClick = { onAction(PlayerMenuAction.LYRICS) },
+            )
+
+            // Center: Output Device button with signature Coral Red underline
+            OutputPill(
+                onClick = { onAction(PlayerMenuAction.OUTPUT) },
+                modifier = Modifier.weight(1f, fill = false),
+            )
+
+            // Right: Queue button (glowing Coral Red when active)
+            BottomToolButton(
+                icon = R.drawable.flagship_queue,
+                label = "Danh sách chờ",
+                active = queueActive,
+                onClick = { onAction(PlayerMenuAction.QUEUE) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomToolButton(
+    icon: Int,
+    label: String,
+    active: Boolean,
+    onClick: () -> Unit,
+) {
+    val source = remember { MutableInteractionSource() }
+    val bgColor = if (active) {
+        com.mochyy.mochymusic.ui.component.AppleMusicAccent
+    } else {
+        PillFill
+    }
+    val contentTint = Color.White
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxHeight()
+            .clickable(interactionSource = source, indication = RemoteFocus, onClick = onClick)
+            .semantics {
+                contentDescription = label
+                role = Role.Button
+            },
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .height(28.dp)
+                .pressShrink(source)
+                .clip(RoundedCornerShape(50))
+                .background(bgColor)
+                .padding(horizontal = 12.dp),
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                tint = contentTint,
+                modifier = Modifier.size(13.dp),
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                text = label,
+                style = PillText.copy(color = contentTint),
+                maxLines = 1,
             )
         }
     }
@@ -334,20 +400,38 @@ private fun OutputPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
                 role = Role.Button
             },
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier
-                .widthIn(min = PillWidth, max = 200.dp)
-                .height(PillHeight)
-                .pressShrink(source)
-                .clip(RoundedCornerShape(50))
-                .background(PillFill)
-                .padding(horizontal = 11.dp),
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.pressShrink(source),
         ) {
-            Icon(painter = painter, contentDescription = null, tint = Color.White, modifier = Modifier.size(11.5.dp))
-            Spacer(Modifier.width(5.dp))
-            Text(text = label, style = PillText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .widthIn(min = 84.dp, max = 160.dp)
+                    .height(PillHeight)
+                    .clip(RoundedCornerShape(50))
+                    .background(PillFill)
+                    .padding(horizontal = 11.dp),
+            ) {
+                Icon(
+                    painter = painter,
+                    contentDescription = null,
+                    tint = com.mochyy.mochymusic.ui.component.AppleMusicAccent,
+                    modifier = Modifier.size(11.5.dp),
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(text = label, style = PillText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.height(3.dp))
+            // Apple Music Coral Red underline indicator beneath the Output Device button
+            Box(
+                modifier = Modifier
+                    .width(34.dp)
+                    .height(2.5.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(com.mochyy.mochymusic.ui.component.AppleMusicAccent),
+            )
         }
     }
 }

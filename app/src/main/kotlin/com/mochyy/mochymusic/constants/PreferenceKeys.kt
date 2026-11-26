@@ -886,11 +886,10 @@ val PlayerCoverStyleKey = stringPreferencesKey("playerCoverStyle")
  * explicit choice in Player customise still wins on every device.
  */
 val DefaultPlayerCoverStyle: PlayerCoverStyle
-    get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        PlayerCoverStyle.EDGE_TO_EDGE
-    } else {
-        PlayerCoverStyle.SQUARED
-    }
+    get() = PlayerCoverStyle.EDGE_TO_EDGE
+
+val LyricsBoldnessKey = intPreferencesKey("lyricsBoldness")
+val DynamicCoverBlurKey = booleanPreferencesKey("dynamicCoverBlur")
 
 val ShowBigDiscStylesKey = booleanPreferencesKey("showBigDiscStyles")
 

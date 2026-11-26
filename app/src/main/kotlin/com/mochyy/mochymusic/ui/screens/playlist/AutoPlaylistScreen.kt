@@ -137,15 +137,15 @@ fun AutoPlaylistScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val queueTitle by playerConnection.queueTitle.collectAsState()
     val playlist = when (viewModel.playlist) {
-        "liked" -> stringResource(R.string.liked)
+        "liked" -> "Yêu thích"
         "uploaded" -> stringResource(R.string.uploaded_playlist)
         "downloaded" -> stringResource(R.string.offline)
         "local" -> stringResource(R.string.library_tab_local)
-        "local_liked" -> "Local liked songs"
-        "cached" -> "Cached"
-        "cached_liked" -> "Cached liked songs"
-        "songs" -> "All Songs"
-        "recently_added" -> "Recently Added"
+        "local_liked" -> "Yêu thích trên máy"
+        "cached" -> "Bộ nhớ đệm"
+        "cached_liked" -> "Yêu thích đã lưu đệm"
+        "songs" -> "Tất cả bài hát"
+        "recently_added" -> "Mới thêm gần đây"
         else -> viewModel.playlist
     }
 

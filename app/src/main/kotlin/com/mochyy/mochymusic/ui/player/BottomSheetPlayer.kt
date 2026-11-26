@@ -396,12 +396,17 @@ private fun PlayerSheet(
     // the flagship keeps its moving-colour background while the turntable uses the shared player background
     var turntableBackground by rememberEnumPreference(PlayerBackgroundStyleKey, PlayerBackgroundStyle.COVER_GRADIENT)
     var flagshipBackground by rememberEnumPreference(FlagshipBackgroundStyleKey, PlayerBackgroundStyle.AMBIENT)
-    val backgroundStyle = if (isFlagship) flagshipBackground else turntableBackground
+    val (dynamicCoverBlur) = rememberPreference(com.mochyy.mochymusic.constants.DynamicCoverBlurKey, defaultValue = true)
+    val backgroundStyle = when {
+        !dynamicCoverBlur -> PlayerBackgroundStyle.SOLID
+        isFlagship -> flagshipBackground
+        else -> turntableBackground
+    }
     var transportLayout by rememberEnumPreference(FlagshipTransportLayoutKey, FlagshipTransportLayout.THREE)
     // the colours the flagship's backdrop and cover fade drift between
     val ambient = rememberAmbientColors()
-    // what sits under the play buttons: the card deck or the volume bar
-    val (barStyle, onBarStyle) = rememberEnumPreference(FlagshipBottomBarStyleKey, PlayerBottomBarStyle.STACK)
+    // what sits under the play buttons: default to VOLUME (Apple Music bottom toolbar with Lyrics, Output Device & Queue)
+    val (barStyle, onBarStyle) = rememberEnumPreference(FlagshipBottomBarStyleKey, PlayerBottomBarStyle.VOLUME)
     val cardLook = FlagshipCardLook
     StudioCameraEffect(studio, studioCapture, studioPieces, barStyle)
     // while the bar is edited both its styles are built, each lifted off the player for the editor
@@ -1070,6 +1075,7 @@ private fun PlayerSheet(
                     onVideoShowingChange = { videoShowing = it },
                     ambient = if (isFlagship || backgroundStyle == PlayerBackgroundStyle.AMBIENT) ambient else null,
                     frostedCover = isFlagship,
+                    controlsHiddenProvider = { controlsHiddenState.value },
                 )
             },
             onDismiss = {
@@ -1388,12 +1394,17 @@ private fun PlayerSheet(
                 sourceRectProvider = { songInfoSourceRect },
                 sheetProgressProvider = progressProvider,
 
-                targetY = statusBarTopInset + 38.dp,
+                targetY = statusBarTopInset + 48.dp,
                 screenWidth = screenWidth,
                 // the Turntable's title is set differently, so its header title fades in over it
                 handOff = !isTurntable,
                 // the queue page's heart sits at the header's end; the title fades out before it
                 endRoom = { queuePageProgress },
+                modifier = Modifier.graphicsLayer {
+                    val hidden = controlsHiddenState.value
+                    alpha = 1f - hidden
+                    translationY = -18.dp.toPx() * hidden
+                },
             )
             // Above the title after a like, moving with it into the lyrics/queue header.
             // the crossmix flag flips at song changes; read in here it recomposes the label, not the player
@@ -1403,7 +1414,7 @@ private fun PlayerSheet(
                 mixing = playerConnection.isCrossmixing.collectAsState().value,
                 sourceRectProvider = { songInfoSourceRect },
                 headerTitleX = LyricsHeaderArtX + LyricsHeaderArtSize + 18.dp,
-                headerTitleY = statusBarTopInset + 38.dp,
+                headerTitleY = statusBarTopInset + 48.dp,
                 lyricsProgressProvider = { lyricsProgress },
                 sheetProgressProvider = progressProvider,
             )
@@ -1858,6 +1869,11 @@ private fun PlayerSheet(
                 sheet = state,
                 statusBarTop = statusBarTopInset,
                 enabled = { !studio.engaged },
+                onMenuClick = {
+                    menuFromLyrics = showLyrics
+                    showActionMenu = true
+                },
+                hiddenAmount = { controlsHiddenState.value },
                 modifier = Modifier.align(Alignment.TopCenter),
             )
         }
@@ -2130,7 +2146,7 @@ private fun PlayerSheet(
             )
             val endTimestamp by rememberEnumPreference(
                 com.mochyy.mochymusic.constants.PlayerEndTimestampKey,
-                com.mochyy.mochymusic.constants.PlayerEndTimestamp.END_TIME,
+                com.mochyy.mochymusic.constants.PlayerEndTimestamp.TIME_LEFT,
             )
             val artworkPalette = com.mochyy.mochymusic.ui.theme.ArtworkPalette.from(com.mochyy.mochymusic.LocalArtworkColor.current)
             if (playerStyle == PlayerStyle.MODULE) com.mochyy.mochymusic.ui.player.studio.ModuleEditOverlay(studio, moduleEditor, morphingGlassState)

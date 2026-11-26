@@ -445,6 +445,7 @@ fun MorphingCover(
     ambient: AmbientColors? = null,
     // the new flagship's cover frosts into the backdrop by itself, so nothing is mirrored under it
     frostedCover: Boolean = false,
+    controlsHiddenProvider: () -> Float = { 0f },
 ) {
     val playerConnection = LocalPlayerConnection.current
     val density = LocalDensity.current
@@ -857,7 +858,14 @@ fun MorphingCover(
                     .then(studioArtModifier)
                     .graphicsLayer {
                         val p = progressProvider()
-                        if (alternateStyle) alpha = (1f - p / 0.4f).coerceIn(0f, 1f)
+                        val lp = lyricsProgressProvider()
+                        val hidden = controlsHiddenProvider() * lp
+                        if (alternateStyle) {
+                            alpha = (1f - p / 0.4f).coerceIn(0f, 1f)
+                        } else if (hidden > 0.001f) {
+                            alpha = (1f - hidden).coerceIn(0f, 1f)
+                            translationY = -18.dp.toPx() * hidden
+                        }
 
                         scaleX = animatedPauseScale
                         scaleY = animatedPauseScale

@@ -207,9 +207,9 @@ private val HeroSectionTuck = 7.dp
 private val HeroSlideEasing = CubicBezierEasing(0.32f, 0f, 0.15f, 1f)
 private const val HeroSlideMillis = 1150
 private const val HeroAdvanceMillis = 5500L
-private val HeroPillContent = Color(0xFF2F2F2F)
-private val HeroPillFill = Color.White.copy(alpha = 0.64f)
-private val HeroLabelColor = Color.White.copy(alpha = 0.69f)
+private val HeroPillContent = Color.Black
+private val HeroPillFill = Color.White
+private val HeroLabelColor = Color.White.copy(alpha = 0.78f)
 
 // once the hero starts scrolling away its video holds still and the carousel stops turning, so
 // the scroll's blur only ever sees a still frame
@@ -926,7 +926,8 @@ private fun HeroPage(
         ) {
             HeroText(
                 label = item.label(isThisPlaying),
-                title = if (item.subText.isNotEmpty()) "${item.mainText} - ${item.subText}" else item.mainText,
+                title = item.mainText,
+                subtitle = item.subText.takeIf { it.isNotEmpty() },
                 pill = when {
                     item.opensPage -> HeroPillKind.View
                     isThisPlaying -> HeroPillKind.Pause
@@ -1182,7 +1183,7 @@ private fun BoxScope.TvHeroScrims() {
 /** black at [gradient], over the 36% dim */
 private fun heroScrimBlack(gradient: Float): Color = Color.Black.copy(alpha = 1f - (1f - HeroDim) * (1f - gradient))
 
-/** label, title and pill, sitting on the hero's bottom left like the Figma */
+/** label, bold title, artist subtitle and white "▶ Phát" pill, sitting on the hero's bottom left */
 @Composable
 internal fun HeroText(
     label: HeroLabel?,
@@ -1190,6 +1191,7 @@ internal fun HeroText(
     pill: HeroPillKind,
     onPillClick: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     pillEnabled: Boolean = true,
     titleStyle: androidx.compose.ui.text.TextStyle = HomeTitleStyle,
 ) {
@@ -1197,32 +1199,63 @@ internal fun HeroText(
     Column(
         modifier = modifier.padding(start = HomeContentInset, end = HomeContentInset, bottom = bottom)
     ) {
-        label?.let { HeroLabelLine(it) }
+        label?.let {
+            HeroLabelLine(it)
+            Spacer(Modifier.height(4.dp))
+        }
         AnimatedContent(
-            targetState = title,
+            targetState = title to subtitle,
             transitionSpec = { heroLabelSwap() },
             label = "heroTitle",
-        ) { text ->
-            Text(
-                text = text,
-                style = titleStyle,
-                color = Color.White,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+        ) { (mainTitle, artistSub) ->
+            Column {
+                Text(
+                    text = mainTitle,
+                    style = titleStyle,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (!artistSub.isNullOrBlank()) {
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = artistSub,
+                        style = HomeLabelStyle,
+                        color = Color.White.copy(alpha = 0.80f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
-        Spacer(Modifier.height(11.dp))
+        Spacer(Modifier.height(12.dp))
         HeroPill(kind = pill, onClick = onPillClick, enabled = pillEnabled)
     }
 }
 
-/** "Because you like [tiny cover] Song": the reason, then the song it grew out of */
+/** "VÌ BẠN NGHE... [tiny cover] Song": the uppercase Apple Music reason above the hero title */
 @Composable
 private fun HeroLabelLine(label: HeroLabel) {
+    val rawLabel = when (label.textRes) {
+        R.string.pc_hero_now_playing -> "ĐANG PHÁT"
+        R.string.pc_hero_continue -> "TIẾP TỤC NGHE"
+        R.string.pc_hero_recently_played -> "NGHE GẦN ĐÂY"
+        R.string.pc_hero_you_may_like -> "GỢI Ý CHO BẠN"
+        R.string.pc_hero_because_like -> "VÌ BẠN THÍCH"
+        R.string.pc_hero_more_from -> "THÊM TỪ"
+        R.string.pc_hero_because_played, R.string.pc_hero_because_listen -> "VÌ BẠN NGHE"
+        R.string.pc_hero_inspired_by, R.string.pc_hero_similar_to -> "TƯƠNG TỰ VỚI"
+        R.string.pc_hero_on_repeat -> "NGHE NHIỀU NHẤT"
+        R.string.pc_hero_back_in_rotation -> "NGHE LẠI YÊU THÍCH"
+        else -> (if (label.textRes != 0) stringResource(label.textRes) else label.text).uppercase()
+    }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = if (label.textRes != 0) stringResource(label.textRes) else label.text,
-            style = HomeLabelStyle,
+            text = rawLabel,
+            style = HomeLabelStyle.copy(
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold,
+            ),
             color = HeroLabelColor,
             maxLines = 1,
         )
@@ -1241,9 +1274,12 @@ private fun HeroLabelLine(label: HeroLabel) {
         if (label.subject != null) {
             Spacer(Modifier.width(6.dp))
             Text(
-                text = label.subject,
-                style = HomeLabelStyle,
-                color = Color.White.copy(alpha = 0.88f),
+                text = label.subject.uppercase(),
+                style = HomeLabelStyle.copy(
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                ),
+                color = Color.White.copy(alpha = 0.92f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
@@ -1312,8 +1348,8 @@ internal fun HeroPill(
                 }
                 Text(
                     text = when (current) {
-                        HeroPillKind.Play -> stringResource(R.string.play)
-                        HeroPillKind.Pause -> stringResource(R.string.pause)
+                        HeroPillKind.Play -> "Phát"
+                        HeroPillKind.Pause -> "Tạm dừng"
                         HeroPillKind.View -> stringResource(R.string.pc_hero_view)
                         HeroPillKind.Roll -> stringResource(R.string.pc_hero_roll)
                         HeroPillKind.Rolling -> stringResource(R.string.pc_hero_rolling)

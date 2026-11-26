@@ -154,10 +154,10 @@ import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 // geometry and type from the Figma playlist frames (16:1162 open, 16:1354 scrolled). internal so
 // the album, artist and generated pages line up on the same inset and type
-internal val PlaylistInset = 36.dp
+internal val PlaylistInset = 24.dp
 internal val PlaylistTracking = (-0.06).em
-internal val PillContent = Color(0xFF2F2F2F)
-internal val PillFill = Color.White.copy(alpha = 0.64f)
+internal val PillContent = com.mochyy.mochymusic.ui.component.AppleMusicAccent
+internal val PillFill = Color.White.copy(alpha = 0.12f)
 internal val TrackShape = RoundedCornerShape(9.dp)
 
 // a pressed track lights a pill from one side of the screen to the other, like the swipe slab
@@ -331,7 +331,7 @@ fun PlaylistDetailScaffold(
     // there from the first frame, and keeping it means the cover never swaps mid-way
     val handedCover = remember(sharedElementKey) { containerTransformCover(sharedElementKey) }
     val coverUrl = handedCover ?: coverUrl
-    val playlistStyle by rememberEnumPreference(PlaylistStyleKey, defaultValue = PlaylistStyle.FLOW)
+    val playlistStyle by rememberEnumPreference(PlaylistStyleKey, defaultValue = PlaylistStyle.CLASSIC)
     val effectiveShowCover = showCover && (roundCapsule || playlistStyle == PlaylistStyle.FLOW)
     val effectiveRoundCapsule = roundCapsule || (showCover && playlistStyle == PlaylistStyle.MINIMAL)
     val classicBackdrop = showCover && !roundCapsule && playlistStyle == PlaylistStyle.CLASSIC
@@ -972,7 +972,7 @@ fun PlaylistHeader(
     // sits at the far end of the button row, like the library pages' grid and list switch
     actionsEnd: (@Composable () -> Unit)? = null,
 ) {
-    val playlistStyle by rememberEnumPreference(PlaylistStyleKey, defaultValue = PlaylistStyle.FLOW)
+    val playlistStyle by rememberEnumPreference(PlaylistStyleKey, defaultValue = PlaylistStyle.CLASSIC)
     val framedCover = LocalPlaylistFramedCover.current
     // on its side the cover is already at the left, so the block heads the songs without a band or a framed cover of its own
     val sideBySide = LocalPlaylistSideBySide.current
@@ -981,25 +981,29 @@ fun PlaylistHeader(
 
     val body: @Composable () -> Unit = {
         Column(
-            modifier = Modifier.padding(
-                start = PlaylistInset + 1.dp,
-                end = PlaylistInset,
-                bottom = 14.dp,
-            )
+            horizontalAlignment = if (useClassic) Alignment.CenterHorizontally else Alignment.Start,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    start = PlaylistInset,
+                    end = PlaylistInset,
+                    bottom = 14.dp,
+                )
         ) {
             if (useClassic && framedCover != null) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 22.dp),
+                        .padding(bottom = 18.dp),
                 ) {
-                    val shape = RoundedCornerShape(HomeCardCornerRadius)
+                    val shape = RoundedCornerShape(20.dp)
                     Box(
                         modifier = Modifier
                             .size(playlistClassicCoverSize())
                             .clip(shape)
-                            .background(BoneColor),
+                            .background(BoneColor)
+                            .border(1.dp, Color.White.copy(alpha = 0.14f), shape),
                     ) {
                         framedCover(Modifier.fillMaxSize())
                     }
@@ -1009,11 +1013,12 @@ fun PlaylistHeader(
                 text = title,
                 style = if (useMinimal) PlaylistCompactTitleStyle else PlaylistTitleStyle,
                 color = Color.White,
+                textAlign = if (useClassic) TextAlign.Center else TextAlign.Start,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (creators.isNotEmpty()) {
-                Spacer(Modifier.height(3.dp))
+                Spacer(Modifier.height(4.dp))
                 CreatorRow(creators, onCreatorClick)
             }
             if (!description.isNullOrBlank()) {
@@ -1021,49 +1026,64 @@ fun PlaylistHeader(
                 PlaylistDescription(description)
             }
             if (stats.isNotEmpty()) {
-                Spacer(Modifier.height(if (description.isNullOrBlank()) 3.dp else 6.dp))
+                Spacer(Modifier.height(if (description.isNullOrBlank()) 4.dp else 6.dp))
                 Text(
                     text = stats,
-                    style = PlaylistStatsStyle,
-                    color = Color.White.copy(alpha = 0.62f),
+                    style = PlaylistStatsStyle.copy(fontSize = 12.5.sp),
+                    color = Color.White.copy(alpha = 0.65f),
+                    textAlign = if (useClassic) TextAlign.Center else TextAlign.Start,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
             Spacer(Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                PlayPill(isPlaying = isPlaying, onClick = onPlayClick)
-                Spacer(Modifier.width(9.dp))
-                CircleAction(
-                    icon = R.drawable.shuffle,
-                    contentDescription = stringResource(R.string.shuffle),
-                    onClick = onShuffleClick,
-                    spinOnClick = true,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                PlayPill(
+                    isPlaying = isPlaying,
+                    onClick = onPlayClick,
+                    modifier = Modifier.weight(1f),
                 )
-                if (onSearchClick != null) {
-                    Spacer(Modifier.width(4.dp))
-                    CircleAction(
-                        icon = R.drawable.search_outline,
-                        contentDescription = stringResource(R.string.search_this_list),
-                        onClick = onSearchClick,
-                    )
-                }
-                if (isSaved != null) {
-                    Spacer(Modifier.width(4.dp))
-                    CircleAction(
-                        icon = if (isSaved) R.drawable.library_add_check else R.drawable.library_add,
-                        contentDescription = stringResource(if (isSaved) R.string.pc_in_library else R.string.add_to_library),
-                        onClick = onSaveClick,
-                    )
-                }
-                if (actionsEnd != null) {
-                    Spacer(Modifier.weight(1f))
-                    actionsEnd()
+                ShufflePill(
+                    onClick = onShuffleClick,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            if (onSearchClick != null || isSaved != null || actionsEnd != null) {
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (onSearchClick != null) {
+                        CircleAction(
+                            icon = R.drawable.search_outline,
+                            contentDescription = stringResource(R.string.search_this_list),
+                            onClick = onSearchClick,
+                        )
+                    }
+                    if (isSaved != null) {
+                        CircleAction(
+                            icon = if (isSaved) R.drawable.library_add_check else R.drawable.library_add,
+                            contentDescription = stringResource(if (isSaved) R.string.pc_in_library else R.string.add_to_library),
+                            onClick = onSaveClick,
+                        )
+                    }
+                    if (actionsEnd != null) {
+                        Spacer(Modifier.weight(1f))
+                        actionsEnd()
+                    }
                 }
             }
             if (sortControl != null) {
                 Spacer(Modifier.height(12.dp))
-                sortControl()
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+                    sortControl()
+                }
             }
         }
         if (below != null) {
@@ -1144,20 +1164,26 @@ internal fun PlaylistDescription(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** play and pause swap with a little pop, and the pill eases to the new label's width */
+/** Apple Music frosted glass "▶ Phát" button with Coral Red (#FA2D48) icon & text */
 @Composable
-internal fun PlayPill(isPlaying: Boolean, onClick: () -> Unit) {
+internal fun PlayPill(
+    isPlaying: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val interaction = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(14.dp)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        horizontalArrangement = Arrangement.Center,
+        modifier = modifier
             .pressBounce(interaction)
-            .height(33.dp)
-            .clip(RoundedCornerShape(50))
+            .height(46.dp)
+            .clip(shape)
             .background(PillFill)
+            .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
             .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
-            .animateContentSize(spring(dampingRatio = 0.7f, stiffness = 500f))
-            .padding(start = 21.dp, end = 17.dp)
+            .padding(horizontal = 16.dp)
     ) {
         AnimatedContent(
             targetState = isPlaying,
@@ -1168,21 +1194,66 @@ internal fun PlayPill(isPlaying: Boolean, onClick: () -> Unit) {
                 painter = painterResource(if (playing) R.drawable.ic_untitled_pause else R.drawable.ic_untitled_play),
                 contentDescription = null,
                 tint = PillContent,
-                modifier = Modifier.size(15.dp),
+                modifier = Modifier.size(16.dp),
             )
         }
-        Spacer(Modifier.width(9.dp))
+        Spacer(Modifier.width(8.dp))
         AnimatedContent(
             targetState = isPlaying,
             transitionSpec = { labelSwap() },
             label = "playPillLabel",
         ) { playing ->
             Text(
-                text = stringResource(if (playing) R.string.pause else R.string.play),
+                text = if (playing) "Tạm dừng" else "Phát",
                 style = PillLabelStyle,
                 color = PillContent,
             )
         }
+    }
+}
+
+/** Apple Music frosted glass "🔀 Ngẫu nhiên" button with Coral Red (#FA2D48) icon & text */
+@Composable
+internal fun ShufflePill(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val spin = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = modifier
+            .pressBounce(interaction)
+            .height(46.dp)
+            .clip(shape)
+            .background(PillFill)
+            .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
+            .clickable(interactionSource = interaction, indication = RemoteFocus) {
+                scope.launch {
+                    spin.snapTo(0f)
+                    spin.animateTo(1f, tween(520, easing = FastOutSlowInEasing))
+                }
+                onClick()
+            }
+            .padding(horizontal = 16.dp)
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.shuffle),
+            contentDescription = "Ngẫu nhiên",
+            tint = PillContent,
+            modifier = Modifier
+                .size(18.dp)
+                .graphicsLayer { rotationZ = spin.value * 360f },
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "Ngẫu nhiên",
+            style = PillLabelStyle,
+            color = PillContent,
+        )
     }
 }
 
@@ -1423,6 +1494,11 @@ fun PlaylistTrackRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
+            .then(
+                if (isActive) {
+                    Modifier.background(com.mochyy.mochymusic.ui.component.AppleMusicAccent.copy(alpha = 0.08f))
+                } else Modifier
+            )
             .selectedRowBand { band }
             .combinedClickable(
                 interactionSource = null,
@@ -1434,7 +1510,7 @@ fun PlaylistTrackRow(
     ) {
         Box(
             modifier = Modifier
-                .size(39.dp)
+                .size(42.dp)
                 .then(coverModifier)
                 .background(BoneColor, coverShape)
         ) {
@@ -1450,18 +1526,18 @@ fun PlaylistTrackRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 11.dp)
+                .padding(horizontal = 12.dp)
         ) {
             com.mochyy.mochymusic.ui.component.TitleWithMarks(
                 text = title,
                 songId = songId,
                 style = TrackTitleStyle,
-                color = Color.White.copy(alpha = if (isActive) 1f else 0.94f),
+                color = if (isActive) com.mochyy.mochymusic.ui.component.AppleMusicAccent else Color.White.copy(alpha = 0.94f),
             )
             Text(
                 text = subtitle,
                 style = TrackSubtitleStyle,
-                color = Color.White.copy(alpha = 0.55f),
+                color = if (isActive) com.mochyy.mochymusic.ui.component.AppleMusicAccent.copy(alpha = 0.80f) else Color.White.copy(alpha = 0.55f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

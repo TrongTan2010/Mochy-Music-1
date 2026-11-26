@@ -215,6 +215,10 @@ fun PlayerActionMenu(
 
                 Spacer(modifier = Modifier.height(SheetHeaderGap))
 
+                AudioQualityInfoCard(songId = songId)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // Opened from the lyrics page, the lyrics tools are what the menu is for, so they
                 // come first and take the two big cards.
                 if (fromLyrics) {
@@ -269,22 +273,24 @@ fun PlayerActionMenu(
 
                 // what people open this menu for most, as a two by two grid of big cards
                 SheetActionCardRow {
-                    // the song keeps playing and everything after it becomes songs like it, as spotify and apple music do; a file on the phone has no station
-                    SheetActionCard(
-                        icon = R.drawable.radio,
-                        title = androidx.compose.ui.res.stringResource(R.string.start_radio),
-                        enabled = currentMetadata != null && currentMetadata?.localUri == null,
-                        onClick = {
-                            playerConnection.startRadioSeamlessly()
-                            onDismiss()
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
                     SheetActionCard(
                         icon = R.drawable.playlist_add,
-                        title = stringResource(R.string.add_to_playlist),
+                        title = "Thêm vào playlist",
                         enabled = currentMetadata != null,
                         onClick = { showChoosePlaylistDialog = true },
+                        modifier = Modifier.weight(1f),
+                    )
+                    // opens the song share over everything: a card, its lyrics, a video with the song, or the link
+                    SheetActionCard(
+                        icon = R.drawable.share,
+                        title = "Chia sẻ",
+                        enabled = currentMetadata != null,
+                        onClick = {
+                            currentMetadata?.let { metadata ->
+                                onDismiss()
+                                com.mochyy.mochymusic.ui.player.share.song.SongShare.open(metadata)
+                            }
+                        },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -317,20 +323,30 @@ fun PlayerActionMenu(
                         },
                         modifier = Modifier.weight(1f),
                     )
-                    // opens the song share over everything: a card, its lyrics, a video with the song, or the link
                     SheetActionCard(
-                        icon = R.drawable.share,
-                        title = androidx.compose.ui.res.stringResource(R.string.share),
-                        enabled = currentMetadata != null,
-                        onClick = {
-                            currentMetadata?.let { metadata ->
-                                onDismiss()
-                                com.mochyy.mochymusic.ui.player.share.song.SongShare.open(metadata)
-                            }
-                        },
+                        icon = R.drawable.sleep_timer,
+                        title = "Hẹn giờ tắt nhạc",
+                        onClick = { showSleepTimer = true },
                         modifier = Modifier.weight(1f),
                     )
                 }
+
+                Spacer(modifier = Modifier.height(SectionGap))
+
+                LyricsBoldnessRow()
+                Spacer(modifier = Modifier.height(8.dp))
+                DynamicCoverBlurRow()
+                Spacer(modifier = Modifier.height(8.dp))
+                // the song keeps playing and everything after it becomes songs like it; a file on the phone has no station
+                MenuRow(
+                    icon = R.drawable.radio,
+                    title = stringResource(R.string.start_radio),
+                    enabled = currentMetadata != null && currentMetadata?.localUri == null,
+                    onClick = {
+                        playerConnection.startRadioSeamlessly()
+                        onDismiss()
+                    },
+                )
 
                 if (onFullVideo != null) {
                     Spacer(modifier = Modifier.height(SectionGap))
@@ -526,6 +542,146 @@ fun PlayerActionMenu(
 
 /** Space between the menu's groups of rows. It used to be a line; the sheets don't draw lines any more. */
 private val SectionGap = 16.dp
+
+/** Apple Music style audio quality card: codec, sample rate and bitrate of what's playing. */
+@Composable
+private fun AudioQualityInfoCard(songId: String?) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val facts by remember(songId) {
+        if (songId != null) playerConnection.streamFacts(songId) else flowOf(null)
+    }.collectAsState(initial = null)
+    val format by playerConnection.currentFormat.collectAsState(initial = null)
+
+    val codec = facts?.codec
+        ?: format?.let { com.mochyy.mochymusic.playback.StreamFacts.codecOf(it.mimeType, it.codecs) }
+        ?: "AAC"
+    val sampleRate = (facts?.sampleRate ?: format?.sampleRate?.takeIf { it > 0 })
+        ?.let { String.format(java.util.Locale.US, "%.1f kHz", it / 1000f) }
+        ?: "48.0 kHz"
+    val bitrate = format?.bitrate?.takeIf { it > 0 }?.let { "${(it + 500) / 1000} kbps" } ?: "—"
+    val lossless = codec == "FLAC" || codec == "ALAC" || codec == "PCM"
+    val accent = com.mochyy.mochymusic.ui.component.AppleMusicAccent
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(MenuRowSurface)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Chất lượng âm thanh",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = if (lossless) "Lossless" else "Chất lượng cao",
+                color = accent,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(accent.copy(alpha = 0.16f))
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            AudioMetric(label = "Định dạng", value = codec, modifier = Modifier.weight(1f))
+            AudioMetric(label = "Tần số lấy mẫu", value = sampleRate, modifier = Modifier.weight(1f))
+            AudioMetric(label = "Bitrate", value = bitrate, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun AudioMetric(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** Lyrics font weight: 0 regular, 1 medium bold, 2 extra bold (default). Read by LyricsGlowLine. */
+@Composable
+private fun LyricsBoldnessRow() {
+    val (boldness, setBoldness) = rememberPreference(com.mochyy.mochymusic.constants.LyricsBoldnessKey, defaultValue = 2)
+    val accent = com.mochyy.mochymusic.ui.component.AppleMusicAccent
+    val options = listOf("Thường", "Đậm vừa", "Siêu đậm")
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(resolvedSheetRowCorner()))
+            .background(resolvedSheetRowSurface())
+            .padding(horizontal = 14.dp, vertical = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SheetIcon(R.drawable.lyrics)
+            Spacer(modifier = Modifier.width(14.dp))
+            Text(
+                text = "Độ đậm lời bài hát",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            options.forEachIndexed { index, label ->
+                val selected = boldness == index
+                Text(
+                    text = label,
+                    color = if (selected) Color.White else Color.White.copy(alpha = 0.7f),
+                    fontSize = 13.sp,
+                    fontWeight = when (index) {
+                        0 -> FontWeight.Medium
+                        1 -> FontWeight.SemiBold
+                        else -> FontWeight.ExtraBold
+                    },
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(50))
+                        .background(if (selected) accent else Color.White.copy(alpha = 0.08f))
+                        .clickable { setBoldness(index) }
+                        .padding(vertical = 9.dp),
+                )
+            }
+        }
+    }
+}
+
+/** On: the player's background is the cover's ambient mesh blur. Off: a plain dark surface. */
+@Composable
+private fun DynamicCoverBlurRow() {
+    val (enabled, setEnabled) = rememberPreference(com.mochyy.mochymusic.constants.DynamicCoverBlurKey, defaultValue = true)
+    MenuRow(
+        icon = R.drawable.tune,
+        title = "Làm mờ nền tự động theo ảnh bìa",
+        onClick = { setEnabled(!enabled) },
+        trailing = { AppSwitch(checked = enabled, onCheckedChange = setEnabled) },
+    )
+}
 
 @Composable
 internal fun MenuRow(

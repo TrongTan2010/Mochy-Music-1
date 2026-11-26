@@ -15,12 +15,31 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.PlayerHorizontalPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -155,82 +174,96 @@ fun PlayerHandle(
     /** False while something else owns the top of the player (the studio). */
     enabled: () -> Boolean,
     modifier: Modifier = Modifier,
+    onMenuClick: (() -> Unit)? = null,
+    hiddenAmount: () -> Float = { 0f },
 ) {
     val currentEnabled by rememberUpdatedState(enabled)
-    val bend = remember { Animatable(0f) }
-    var pressed by remember { mutableStateOf(false) }
 
-    // A chevron while pressed and while the player is closing; flat again once it's down, so the
-    // next open starts from the bar.
-    LaunchedEffect(sheet) {
-        snapshotFlow { pressed || (!sheet.isExpandedOrExpanding && sheet.progress > 0f) }
-            .collectLatest { chevron -> bend.animateTo(if (chevron) 1f else 0f, HandleBendSpring) }
-    }
     LaunchedEffect(sheet, state) {
         snapshotFlow { sheet.isExpandedOrExpanding }.collectLatest { open -> if (open) state.wake() }
     }
 
-    // Window bounds of the tap target, for the colour sampling. Not state: only read when sampling.
-    val targetBounds = remember { FloatArray(4) }
-    val onLight by rememberOnLightBehind(sheet, targetBounds)
-    val color by animateColorAsState(
-        targetValue = if (onLight) Color.Black else Color.White,
-        animationSpec = tween(durationMillis = 300),
-        label = "playerHandleColor",
-    )
+    val topBarAlpha = {
+        val sheetVis = ((sheet.progress - 0.55f) / 0.40f).coerceIn(0f, 1f)
+        val immersiveVis = (1f - hiddenAmount()).coerceIn(0f, 1f)
+        if (currentEnabled()) sheetVis * immersiveVis else 0f
+    }
 
-    Box(
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
         modifier = modifier
-            .offset(y = statusBarTop + HandleCentreBelowStatusBar - HandleTargetHeight / 2)
-            .size(HandleTargetWidth, HandleTargetHeight)
-            .onGloballyPositioned {
-                val bounds = it.boundsInWindow()
-                targetBounds[0] = bounds.left
-                targetBounds[1] = bounds.top
-                targetBounds[2] = bounds.right
-                targetBounds[3] = bounds.bottom
-            }
-            .pointerInput(sheet) {
-                awaitEachGesture {
-                    awaitFirstDown()
-                    // Only on the open player: collapsed, this spot is inside the mini player,
-                    // whose tap opens it. The down isn't consumed, so a drag from here still
-                    // reaches the sheet and closes it.
-                    // Gated on how open the sheet looks, not on where it was last sent: a player
-                    // that shows open while its anchor says otherwise (a cut-short animation) has
-                    // to stay closable from here - the handle is the one way out that's always
-                    // on screen (#109).
-                    if (!currentEnabled() || sheet.progress < HandleTapMinProgress) {
-                        return@awaitEachGesture
-                    }
-                    pressed = true
-                    val up = waitForUpOrCancellation()
-                    pressed = false
-                    if (up != null) {
-                        up.consume()
-                        sheet.collapseSoft()
-                    }
-                }
-            }
+            .fillMaxWidth()
+            .padding(top = statusBarTop + 8.dp, start = PlayerHorizontalPadding, end = PlayerHorizontalPadding)
             .graphicsLayer {
-                alpha = if (currentEnabled()) state.alpha.value else 0f
-                // one stroke: its alpha can go on the paint, with no layer of its own
+                val a = topBarAlpha()
+                alpha = a
+                translationY = -18.dp.toPx() * hiddenAmount().coerceIn(0f, 1f)
                 compositingStrategy = CompositingStrategy.ModulateAlpha
             }
-            .drawWithCache {
-                val path = Path()
-                val stroke = Stroke(
-                    width = HandleThickness.toPx(),
-                    cap = StrokeCap.Round,
-                    join = StrokeJoin.Round,
-                )
-                // Half the length between the cap centres, for the bar and for the chevron.
-                val barHalf = (HandleLength - HandleThickness).toPx() / 2f
-                val chevronHalf = (ChevronLength - HandleThickness).toPx() / 2f
-                val depthPx = ChevronDepth.toPx()
-                onDrawBehind { drawBendingBar(path, bend.value, barHalf, chevronHalf, depthPx, stroke, color) }
-            },
-    )
+    ) {
+        // Left: circular frosted glass collapse button (v)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.16f))
+                .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                .clickable(enabled = sheet.progress >= HandleTapMinProgress) {
+                    sheet.collapseSoft()
+                },
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.expand_more),
+                contentDescription = "Thu nhỏ",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+
+        // Center: frosted glass pill badge "Đang phát"
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .height(32.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color.White.copy(alpha = 0.16f))
+                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(50))
+                .clickable(enabled = sheet.progress >= HandleTapMinProgress) {
+                    sheet.collapseSoft()
+                }
+                .padding(horizontal = 16.dp),
+        ) {
+            Text(
+                text = "Đang phát",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+        }
+
+        // Right: circular frosted glass menu button (...)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.16f))
+                .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                .clickable(enabled = sheet.progress >= HandleTapMinProgress && onMenuClick != null) {
+                    onMenuClick?.invoke()
+                },
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.more_horiz),
+                contentDescription = "Tùy chọn",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
 }
 
 /**

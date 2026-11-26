@@ -101,7 +101,7 @@ fun PlayerProgressSlider(
     val playerConnection = LocalPlayerConnection.current ?: return
     val endTimestamp by com.mochyy.mochymusic.utils.rememberEnumPreference(
         com.mochyy.mochymusic.constants.PlayerEndTimestampKey,
-        com.mochyy.mochymusic.constants.PlayerEndTimestamp.END_TIME,
+        com.mochyy.mochymusic.constants.PlayerEndTimestamp.TIME_LEFT,
     )
     val progressFlow = playerConnection.uiState.progressState
     // only the bar and the time texts read the position, so a tick redraws them and not the whole slider
