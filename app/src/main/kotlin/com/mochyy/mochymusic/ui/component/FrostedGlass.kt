@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageShader
 import androidx.compose.ui.graphics.ShaderBrush
@@ -31,24 +32,36 @@ import com.mochyy.mochymusic.utils.rememberEnumPreference
 import com.mochyy.mochymusic.utils.rememberPreference
 
 /*
- * The floating chrome, the nav bar and the mini player, drawn to the Figma: #131313 at 78% over
- * the blurred app, a 2px white hairline at 5% just inside the edge, and a faint shadow under it.
- * Both bars use what's here, so they can't drift apart.
+ * Apple Music iOS 18 / Liquid Glass floating chrome for the nav dock and the mini player:
+ * translucent obsidian-slate glass (#16161E at 68% alpha), directional top-to-bottom specular
+ * rim and inner sheen, and a deeper floating shadow beneath both capsules.
  */
 
 /** How much of the chrome colour covers the blurred app. */
-private const val FrostTintAlpha = 0.78f
+private const val FrostTintAlpha = 0.68f
 
-/** The hairline is 2 real pixels on every screen, not 2dp: any thicker and it reads as a border. */
-private const val ChromeOutlineWidthPx = 2f
-private val ChromeOutlineColor = Color.White.copy(alpha = 0.05f)
+/** Specular rim thickness in real pixels for Liquid Glass capsules. */
+private const val ChromeOutlineWidthPx = 2.4f
 private val ChromeOutlineStroke = Stroke(ChromeOutlineWidthPx)
+private val ChromeOutlineBrush = Brush.verticalGradient(
+    0f to Color.White.copy(alpha = 0.30f),
+    0.45f to Color.White.copy(alpha = 0.09f),
+    1f to Color.White.copy(alpha = 0.18f),
+)
 
-/** Lifts the chrome off a light page without looking like a dark halo on a black one. */
-val ChromeShadow = Shadow(radius = 6.3.dp, color = Color.Black.copy(alpha = 0.12f), spread = 2.dp)
+/** Inner top specular refraction sheen across the curved Liquid Glass surface. */
+private val LiquidGlassSheenBrush = Brush.verticalGradient(
+    0f to Color.White.copy(alpha = 0.09f),
+    0.42f to Color.Transparent,
+    0.85f to Color.Transparent,
+    1f to Color.White.copy(alpha = 0.035f),
+)
+
+/** Lifts the floating Liquid Glass dock and mini-player capsules off the page. */
+val ChromeShadow = Shadow(radius = 16.dp, color = Color.Black.copy(alpha = 0.30f), spread = 1.dp)
 
 /** The lit tab's pill in the nav bar, and the round press behind the mini player's buttons. */
-val ChromeHighlightColor = Color.White.copy(alpha = 0.1f)
+val ChromeHighlightColor = Color.White.copy(alpha = 0.13f)
 
 /**
  * A faint grain over the glass. A dark blur only has a few shades to work with, so without it the
@@ -126,6 +139,7 @@ fun FrostedChromeGlass(
     Box(
         modifier = modifier.drawWithContent {
             drawContent()
+            drawRect(brush = LiquidGlassSheenBrush)
             if (grain) drawRect(brush = FrostGrainBrush, alpha = FrostGrainAlpha)
         }
     ) {
@@ -163,8 +177,8 @@ internal fun rememberChromeModuleGlass(): com.mochyy.mochymusic.modules.skin.Act
 enum class ChromeSurface(val kind: Float) { NavBar(0f), MiniPlayer(1f), WideBar(2f) }
 
 /**
- * The chrome's hairline round a rounded rect, kept just inside it so the parent's clip can't
- * shave half of it off. [alpha] fades it, for the mini player as it opens.
+ * The chrome's specular Liquid Glass rim round a rounded rect, kept just inside it so the parent's
+ * clip can't shave half of it off. [alpha] fades it, for the mini player as it opens.
  */
 fun DrawScope.drawChromeOutline(
     topLeft: Offset,
@@ -174,7 +188,7 @@ fun DrawScope.drawChromeOutline(
 ) {
     val half = ChromeOutlineWidthPx / 2f
     drawRoundRect(
-        color = ChromeOutlineColor,
+        brush = ChromeOutlineBrush,
         topLeft = Offset(topLeft.x + half, topLeft.y + half),
         size = Size(size.width - ChromeOutlineWidthPx, size.height - ChromeOutlineWidthPx),
         cornerRadius = CornerRadius((cornerRadius - half).coerceAtLeast(0f)),

@@ -19,6 +19,9 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -31,8 +34,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-// the pill sits this far in from the bar's top, bottom and both ends
-private val NavHighlightInset = 8.dp
+// the pill sits this far in from the bar's top, bottom and both ends (5dp for icon + label Apple Music tabs)
+private val NavHighlightInset = 5.dp
 
 // room between a pill and where its neighbour's would be
 private val NavHighlightGap = 4.dp
@@ -106,19 +109,56 @@ internal fun rememberNavPill(selectedIndex: Int): NavPillState {
     return pill
 }
 
-/** mochy's own pill behind the lit tab, left out while [drawn] says the look's glass draws it; only read while drawing, so it never recomposes the bar */
+/** Apple Music iOS 18 Liquid Glass pill behind the lit tab, left out while [drawn] says the look's glass draws it; only read while drawing, so it never recomposes the bar */
 internal fun Modifier.navHighlight(pill: NavPillState, tabCount: Int, drawn: () -> Boolean = { true }): Modifier = drawBehind {
     if (!drawn()) return@drawBehind
     val rect = pill.rect(size, tabCount, this) ?: return@drawBehind
     val lift = pill.lift.value
+    val shown = pill.shown.value
     // lifted, it swells a little past its slot and brightens, as if it rose off the bar
     val grow = lift * 3.dp.toPx()
+    val topLeft = Offset(rect.left - grow, rect.top - grow)
+    val pillSize = Size(rect.width + grow * 2f, rect.height + grow * 2f)
+    val cr = CornerRadius(rect.height / 2f + grow)
+
+    // 1. Soft Apple Music accent ambient glow fill + frosted liquid glass base
     drawRoundRect(
-        color = ChromeHighlightColor.copy(alpha = ChromeHighlightColor.alpha * (1f + 0.7f * lift)),
-        topLeft = Offset(rect.left - grow, rect.top - grow),
-        size = Size(rect.width + grow * 2f, rect.height + grow * 2f),
-        cornerRadius = CornerRadius(rect.height / 2f + grow),
-        alpha = pill.shown.value,
+        color = AppleMusicAccent.copy(alpha = 0.13f + 0.08f * lift),
+        topLeft = topLeft,
+        size = pillSize,
+        cornerRadius = cr,
+        alpha = shown,
+    )
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            0f to Color.White.copy(alpha = 0.16f + 0.08f * lift),
+            0.55f to Color.White.copy(alpha = 0.08f + 0.04f * lift),
+            1f to Color.White.copy(alpha = 0.11f + 0.05f * lift),
+            startY = topLeft.y,
+            endY = topLeft.y + pillSize.height,
+        ),
+        topLeft = topLeft,
+        size = pillSize,
+        cornerRadius = cr,
+        alpha = shown,
+    )
+
+    // 2. Specular Liquid Glass inner capsule rim
+    val strokePx = 1.dp.toPx()
+    val halfStroke = strokePx / 2f
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            0f to Color.White.copy(alpha = 0.32f + 0.12f * lift),
+            0.5f to Color.White.copy(alpha = 0.10f),
+            1f to AppleMusicAccent.copy(alpha = 0.24f + 0.10f * lift),
+            startY = topLeft.y,
+            endY = topLeft.y + pillSize.height,
+        ),
+        topLeft = Offset(topLeft.x + halfStroke, topLeft.y + halfStroke),
+        size = Size((pillSize.width - strokePx).coerceAtLeast(0f), (pillSize.height - strokePx).coerceAtLeast(0f)),
+        cornerRadius = CornerRadius((cr.x - halfStroke).coerceAtLeast(0f)),
+        style = Stroke(strokePx),
+        alpha = shown,
     )
 }
 

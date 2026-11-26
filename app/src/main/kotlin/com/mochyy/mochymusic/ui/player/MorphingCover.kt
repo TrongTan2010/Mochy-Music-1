@@ -502,7 +502,7 @@ fun MorphingCover(
     val pillFrame = com.mochyy.mochymusic.ui.component.LocalMiniPillFrame.current
     // the wide bar's pill shrinks on a short screen, and the mini player's cover and buttons with it
     val miniScale = pillFrame.height / com.mochyy.mochymusic.constants.MiniPlayerHeight
-    val targetMiniArtWidth = if (isVideoActive) (48.dp * miniScale * 16f / 9f) else 48.dp * miniScale
+    val targetMiniArtWidth = if (isVideoActive) (44.dp * miniScale * 16f / 9f) else 44.dp * miniScale
     val animatedMiniArtWidth by animateDpAsState(
         targetValue = targetMiniArtWidth,
         animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
@@ -512,10 +512,9 @@ fun MorphingCover(
     val endpoints = remember(maxWidth, maxHeight, statusBarTop, coverStyle, animatedMiniArtWidth, pillFrame) {
         val miniHeight = pillFrame.height
         val miniArtWidth = animatedMiniArtWidth
-        val miniArtHeight = 48.dp * miniScale
-        // 8dp in from the pill's edge, as from its top and bottom, so the cover lines up with the
-        // nav bar's first tab highlight right under it
-        val miniArtX = pillFrame.start + 8.dp
+        val miniArtHeight = 44.dp * miniScale
+        // 10dp in from the Apple Music floating capsule's edge
+        val miniArtX = pillFrame.start + 10.dp
         val miniArtY = (miniHeight - miniArtHeight) / 2
 
         val miniPlaySize = 36.dp * miniScale
@@ -886,8 +885,9 @@ fun MorphingCover(
                         } else {
                             0.dp
                         }
-                        // the corners round with the size, so a cover still travelling small keeps its thumbnail corners
-                        val base = lerp(ThumbnailCornerRadius, expandedRadius, coverGrowth(p, endpointsPx.growLate))
+                        // Apple Music mini player thumbnail keeps a 11dp rounded corner while collapsed
+                        val miniThumbRadius = maxOf(ThumbnailCornerRadius, 11.dp)
+                        val base = lerp(miniThumbRadius, expandedRadius, coverGrowth(p, endpointsPx.growLate))
                         artShape.radius = lerp(base, LyricsHeaderCornerRadius, lyricsProgressProvider())
                         shape = artShape
                     }
@@ -1187,6 +1187,13 @@ fun MorphingCover(
                 endpointsPx = endpointsPx,
             )
 
+            if (!pillFrame.merged) {
+                MiniPlayerProgressLine(
+                    progressProvider = progressProvider,
+                    pillFrame = pillFrame,
+                )
+            }
+
             if (pillFrame.withPrevious) {
                 MiniPreviousButton(progressProvider = progressProvider, endpointsPx = endpointsPx, size = miniPlaySize)
             }
@@ -1411,20 +1418,69 @@ private fun MiniSongLines(title: String, artist: String, album: String, modifier
             text = title,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = Color.White,
             maxLines = 1,
             softWrap = false,
         )
         val subtitle = listOf(artist, album)
             .filter { it.isNotBlank() }
-            .joinToString(" — ")
+            .joinToString(" · ")
         if (subtitle.isNotBlank()) {
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color.White.copy(alpha = 0.65f),
                 maxLines = 1,
                 softWrap = false,
+            )
+        }
+    }
+}
+
+/**
+ * Subtle Apple Music iOS 18 progress bar hugging the bottom inner curve of the floating MiniPlayer capsule.
+ * Isolated in its own composable so playback position ticks never recompose [MorphingCover].
+ */
+@Composable
+private fun MiniPlayerProgressLine(
+    progressProvider: () -> Float,
+    pillFrame: com.mochyy.mochymusic.ui.component.MiniPillFrame,
+) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val visible by remember { derivedStateOf { progressProvider() < 0.25f } }
+    if (!visible) return
+    val progressState by playerConnection.uiState.progressState.collectAsState()
+    val fraction = if (progressState.duration > 0L) {
+        (progressState.position.toFloat() / progressState.duration.toFloat()).coerceIn(0f, 1f)
+    } else 0f
+
+    androidx.compose.foundation.Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(pillFrame.height)
+            .graphicsLayer {
+                alpha = (1f - progressProvider() / 0.25f).coerceIn(0f, 1f)
+            }
+    ) {
+        val horizontalInset = (pillFrame.start + 22.dp).toPx()
+        val barWidth = (size.width - horizontalInset * 2f).coerceAtLeast(0f)
+        if (barWidth <= 0f) return@Canvas
+        val barHeight = 2.dp.toPx()
+        val barTop = size.height - barHeight - 2.5.dp.toPx()
+        val cr = androidx.compose.ui.geometry.CornerRadius(barHeight / 2f, barHeight / 2f)
+
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.14f),
+            topLeft = Offset(horizontalInset, barTop),
+            size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
+            cornerRadius = cr,
+        )
+        if (fraction > 0.001f) {
+            drawRoundRect(
+                color = com.mochyy.mochymusic.ui.component.AppleMusicAccent,
+                topLeft = Offset(horizontalInset, barTop),
+                size = androidx.compose.ui.geometry.Size(barWidth * fraction, barHeight),
+                cornerRadius = cr,
             )
         }
     }

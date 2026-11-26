@@ -65,13 +65,13 @@ class MiniPillFrame(
     val height: Dp = NavBarHeight,
 )
 
-// the phone's mini player: the full width less 24dp each side, in its own glass
-val PhoneMiniPill = MiniPillFrame(start = 24.dp, end = 24.dp, merged = false, withPrevious = false)
+// the phone's Apple Music iOS 18 floating mini player capsule: 20dp margin matching the dock, 60dp height
+val PhoneMiniPill = MiniPillFrame(start = 20.dp, end = 20.dp, merged = false, withPrevious = false, height = 60.dp)
 
 val LocalMiniPillFrame = staticCompositionLocalOf { PhoneMiniPill }
 
-// each tab of the wide bar, as wide as the bar is tall, like the concept
-private val WideTabWidth = 64.dp
+// each tab of the wide bar, wide enough for Apple Music icon + label
+private val WideTabWidth = 72.dp
 
 // shuffle and repeat at the pill's right end, a little narrower than a tab so they read as the player's
 private val WideExtraWidth = 46.dp

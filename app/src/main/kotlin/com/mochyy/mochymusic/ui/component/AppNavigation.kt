@@ -2,13 +2,18 @@
 
 package com.mochyy.mochymusic.ui.component
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -16,6 +21,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
@@ -28,9 +34,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -199,12 +209,12 @@ class TabOwnership(private val navigationItems: List<Screens>) {
     }
 }
 
-/** The bar itself, a stadium the mini player's 64dp matches. */
+/** The Apple Music iOS 18 floating pill dock height and capsule shape. */
 internal val NavBarHeight = 64.dp
 internal val NavBarShape = RoundedCornerShape(50)
 
-/** How bright an unlit tab's icon is. */
-private const val UnlitIconAlpha = 0.7f
+/** How bright an unlit tab's icon and label are. */
+private const val UnlitIconAlpha = 0.64f
 
 @Composable
 fun AppNavigationBar(
@@ -259,7 +269,7 @@ fun AppNavigationBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                .padding(horizontal = 24.dp, vertical = 8.dp)
+                .padding(horizontal = 20.dp, vertical = 8.dp)
                 .align(Alignment.TopCenter)
                 .height(NavBarHeight)
                 .press3D(maxTilt = 4f, pressedScale = 0.985f)
@@ -296,6 +306,7 @@ fun AppNavigationBar(
                         isSelected = screen.route == selectedTabRoute,
                         onItemClick = onItemClick,
                         onDoubleTap = onSearchDoubleTap.takeIf { screen == Screens.Search },
+                        showLabel = !slimNav,
                     )
                 }
             }
@@ -319,9 +330,8 @@ internal fun tabTapped(lastTap: LongArray, doubleTapTimeoutMillis: Long, onDoubl
 }
 
 /**
- * One tab of the bar. Its icon swaps to the filled one and brightens as it lights up, and it
- * squishes under a press. [onDoubleTap] is for Search, where two taps open the search field.
- * The Library's icon turns into a download badge while songs download.
+ * One tab of the Apple Music Liquid Glass floating dock. Its icon swaps to the filled one,
+ * scales up softly, and glows in Apple Music crimson-pink alongside its label when active.
  */
 @Composable
 internal fun RowScope.NavTab(
@@ -329,26 +339,32 @@ internal fun RowScope.NavTab(
     isSelected: Boolean,
     onItemClick: (Screens, Boolean) -> Unit,
     onDoubleTap: (() -> Unit)?,
+    showLabel: Boolean = true,
 ) {
     val viewConfiguration = LocalViewConfiguration.current
     val interactionSource = remember { MutableInteractionSource() }
     val lastTap = remember { longArrayOf(0L) }
     val lit = animateFloatAsState(
         targetValue = if (isSelected) 1f else 0f,
-        animationSpec = tween(200),
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
         label = "nav_tab_lit"
     )
 
     // Both icons stay loaded, so lighting a tab never shows an empty frame while its filled icon loads.
     val unlitIcon = coil3.compose.rememberAsyncImagePainter(model = screen.iconIdInactive)
     val litIcon = coil3.compose.rememberAsyncImagePainter(model = screen.iconIdActive)
-    val iconSize = if (screen == Screens.Home || screen == Screens.Search) 22.dp else 24.dp
+    val iconSize = if (showLabel) {
+        if (screen == Screens.Home || screen == Screens.Search) 20.dp else 21.dp
+    } else {
+        if (screen == Screens.Home || screen == Screens.Search) 22.dp else 24.dp
+    }
+    val labelText = stringResource(screen.titleId)
 
     Box(
         modifier = Modifier
             .weight(1f)
             .fillMaxHeight()
-            .pressBounce(interactionSource, pressedScale = 0.85f)
+            .pressBounce(interactionSource, pressedScale = 0.86f)
             .clickable(
                 interactionSource = interactionSource,
                 indication = RemoteFocus,
@@ -360,15 +376,45 @@ internal fun RowScope.NavTab(
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (screen == Screens.Library) {
-            LibraryDownloadIcon { TabIcons(screen, unlitIcon, litIcon, iconSize) { lit.value } }
-        } else {
-            TabIcons(screen, unlitIcon, litIcon, iconSize) { lit.value }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .padding(horizontal = 4.dp)
+                .graphicsLayer {
+                    val t = lit.value.coerceIn(0f, 1.15f)
+                    val s = 1f + 0.06f * t
+                    scaleX = s
+                    scaleY = s
+                    translationY = -1.dp.toPx() * t
+                }
+        ) {
+            if (screen == Screens.Library) {
+                LibraryDownloadIcon { TabIcons(screen, unlitIcon, litIcon, iconSize) { lit.value } }
+            } else {
+                TabIcons(screen, unlitIcon, litIcon, iconSize) { lit.value }
+            }
+            if (showLabel) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = labelText,
+                    fontSize = 10.sp,
+                    lineHeight = 11.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = lerp(
+                        Color.White.copy(alpha = UnlitIconAlpha),
+                        AppleMusicAccent,
+                        lit.value.coerceIn(0f, 1f),
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
 
-/** a tab's two icons, the filled one fading in over the outline as the tab lights up */
+/** a tab's two icons, the filled Apple Music crimson-pink one fading in over the outline as the tab lights up */
 @Composable
 private fun TabIcons(
     screen: Screens,
@@ -385,18 +431,18 @@ private fun TabIcons(
             modifier = Modifier
                 .size(iconSize)
                 .graphicsLayer {
-                    alpha = UnlitIconAlpha * (1f - lit())
+                    alpha = UnlitIconAlpha * (1f - lit().coerceIn(0f, 1f))
                     compositingStrategy = CompositingStrategy.ModulateAlpha
                 }
         )
         Icon(
             painter = litIcon,
             contentDescription = null,
-            tint = Color.White,
+            tint = AppleMusicAccent,
             modifier = Modifier
                 .size(iconSize)
                 .graphicsLayer {
-                    alpha = lit()
+                    alpha = lit().coerceIn(0f, 1f)
                     compositingStrategy = CompositingStrategy.ModulateAlpha
                 }
         )

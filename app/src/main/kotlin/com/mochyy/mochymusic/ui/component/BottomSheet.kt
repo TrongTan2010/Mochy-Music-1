@@ -132,8 +132,8 @@ private const val PillPressMaxProgress = 0.02f
 /** The progress the mini player's hairline outline and shadow are gone by. */
 private const val PillEdgeFadeEnd = 0.08f
 
-/** The collapsed sheet, the mini player: its corners; how tall it is and how far in from each side are the MiniPillFrame's. */
-private val PillCornerRadius = 20.dp
+/** The collapsed sheet, the Apple Music floating mini player capsule: smooth 26dp capsule corners. */
+private val PillCornerRadius = 26.dp
 private val PillShape = RoundedCornerShape(PillCornerRadius)
 
 private val PillTiltSpring = spring<Float>(

@@ -758,7 +758,7 @@ class MainActivity : ComponentActivity() {
                         // level with the tabs, in the same pill
                         bottomInset + navPadding - wideBar.pillGap
                     } else {
-                        bottomInset + navPadding + MiniPlayerHeight
+                        bottomInset + navPadding + MiniPlayerHeight + MiniPlayerBottomSpacing
                     },
                     expandedBound = maxHeight,
                 )
@@ -774,7 +774,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     var bottom = bottomInset + navRowHeight
                     // in the wide bar the mini player shares the tabs' row, so it takes no room of its own
-                    if (!playerBottomSheetState.isDismissed && !sharedBarRow) bottom += MiniPlayerHeight
+                    if (!playerBottomSheetState.isDismissed && !sharedBarRow) bottom += MiniPlayerHeight + MiniPlayerBottomSpacing
                     windowsInsets
                         .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
                         .add(WindowInsets(top = AppBarHeight, bottom = bottom))
