@@ -348,6 +348,17 @@ fun LyricsGlowLine(
         lineHeightStyle = if (hasRuby) rubyLineHeightStyle(rubyPlacement) else null,
         textAlign = textAlign,
     ).withLetterMotionFeatures(wordMotion)
+    // Luminous Apple Music glow color blending crisp white with subtle album accent tint
+    val activeGlowColor = remember(accentColor) {
+        androidx.compose.ui.graphics.lerp(Color.White, accentColor, 0.25f)
+    }
+    val activeTextShadow = remember(activeGlowColor) {
+        androidx.compose.ui.graphics.Shadow(
+            color = activeGlowColor.copy(alpha = 0.78f),
+            offset = Offset.Zero,
+            blurRadius = 26f,
+        )
+    }
     // kept above the sweep/plain switch, so the line already has its bold breaks the moment it goes plain again
     val steadyWrap = rememberSteadyWrap(leadText, leadStyle.copy(fontWeight = effectiveSungWeight))
 
@@ -447,6 +458,35 @@ fun LyricsGlowLine(
     Column(
         horizontalAlignment = columnAlign,
         modifier = Modifier
+            .drawBehind {
+                if (suppressEffectsProvider()) return@drawBehind
+                val amp = waveAmplitudeState.value.coerceIn(0f, 1f)
+                if (amp <= 0.02f || size.width < 1f || size.height < 1f) return@drawBehind
+                val cx = when {
+                    alignment == LyricsAlignment.CENTER -> size.width * 0.5f
+                    onLeft -> size.width * 0.42f
+                    else -> size.width * 0.58f
+                }
+                val cy = size.height * 0.5f
+                val rx = (size.width * 0.62f).coerceAtLeast(size.height)
+                val ry = (size.height * 0.95f).coerceAtLeast(1f)
+                withTransform({
+                    translate(left = cx, top = cy)
+                    scale(scaleX = 1f, scaleY = (ry / rx).coerceIn(0.25f, 1f), pivot = Offset.Zero)
+                }) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to activeGlowColor.copy(alpha = 0.22f * amp),
+                            0.45f to activeGlowColor.copy(alpha = 0.09f * amp),
+                            1f to Color.Transparent,
+                            center = Offset.Zero,
+                            radius = rx,
+                        ),
+                        radius = rx,
+                        center = Offset.Zero,
+                    )
+                }
+            }
             .padding(horizontal = LyricsTapPadH, vertical = LyricsTapPadV)
             .then(steadyWrap.modifier),
     ) {
@@ -488,6 +528,7 @@ fun LyricsGlowLine(
                 text = steadyWrap.text,
                 style = leadStyle.copy(
                     fontWeight = if (state == LyricsLineState.ACTIVE) effectiveSungWeight else effectiveRestingWeight,
+                    shadow = if (state == LyricsLineState.ACTIVE) activeTextShadow else null,
                 ),
                 color = textColor,
                 // No maxLines cap. A capped line ellipsised into "..." and simply lost the rest of
@@ -895,14 +936,14 @@ private const val SpaceTimeWeight = 0.4f
 private const val BloomCutoff = 0.01f
 
 /** Style 1 without AGSL (API < 33): a soft light behind a held word stands in for the bloom. */
-private const val FakeGlowAlpha = 0.16f
+private const val FakeGlowAlpha = 0.34f
 
-private const val BloomRadiusPx = 2.6f
+private const val BloomRadiusPx = 4.6f
 
-private const val BloomStrength = 1.6f
+private const val BloomStrength = 2.65f
 
 private const val BloomLagChars = 1.6f
-private const val BloomSpanChars = 3.5f
+private const val BloomSpanChars = 4.5f
 
 /**
  * Style 1 shader: bloom only. Words are moved by drawing (see [rememberWordMotionModifier]), so
@@ -1189,9 +1230,16 @@ internal fun KaraokeSweepText(
             )
 
             if (reached) {
+                val litGlowShadow = remember(highlightColor) {
+                    androidx.compose.ui.graphics.Shadow(
+                        color = highlightColor.copy(alpha = 0.68f),
+                        offset = Offset.Zero,
+                        blurRadius = 20f,
+                    )
+                }
                 Text(
                     text = text,
-                    style = style,
+                    style = style.copy(shadow = litGlowShadow),
                     color = highlightColor,
                     fontWeight = fontWeight,
                     textAlign = textAlign,

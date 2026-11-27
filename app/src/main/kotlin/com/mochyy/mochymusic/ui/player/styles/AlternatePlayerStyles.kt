@@ -78,6 +78,7 @@ fun AlternatePlayerStyle(
     preview: Boolean = false,
 ) {
     when (style) {
+        PlayerStyle.APPLE_MUSIC -> AppleMusicPlayerStyle(actions, modifier, preview)
         PlayerStyle.POSTER -> PosterPlayerStyle(actions, modifier, preview)
         PlayerStyle.TIMELINE -> TimelinePlayerStyle(actions, modifier, preview)
         PlayerStyle.LYRICS -> LyricsPlayerStyle(actions, modifier, preview)
@@ -196,7 +197,7 @@ internal fun StyleFrame(
 
 /** The backdrop's warp clock, shared by the copies crossfading along the row. */
 @Composable
-private fun rememberBackdropClock(running: Boolean): () -> Float {
+internal fun rememberBackdropClock(running: Boolean): () -> Float {
     val time = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     val showing = rememberStyleShowing()
     androidx.compose.runtime.LaunchedEffect(running, showing) {

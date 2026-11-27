@@ -703,6 +703,8 @@ enum class PlayerCoverStyle {
 enum class PlayerStyle(val displayName: String, val selectorName: String) {
     // the flagship as it is now: frosted cover fade, moving cover colours, the new buttons and bottom bar
     FLAGSHIP("Flagship", "Flagship"),
+    // dedicated Apple Music iOS 18/26 player: animated mesh backdrop, breathing hero cover, volume slider & toolbar
+    APPLE_MUSIC("Apple Music", "Apple Music"),
     /** the flagship with a record player for its cover, whose arm is the seek bar */
     TURNTABLE("Turntable", "Turntable"),
     // the song's youtube video across the whole screen, turned sideways, with its lyrics in a pane
@@ -731,13 +733,13 @@ enum class PlayerStyle(val displayName: String, val selectorName: String) {
     val hasFullEditor: Boolean get() = this == FLAGSHIP
 
     // the styles whose menu has a rotate button, each with a landscape layout of its own to turn into
-    val turnable: Boolean get() = this == TURNTABLE || this == POSTER || this == TIMELINE || this == LYRICS || this == MODULE || isBedside
+    val turnable: Boolean get() = this == APPLE_MUSIC || this == TURNTABLE || this == POSTER || this == TIMELINE || this == LYRICS || this == MODULE || isBedside
 
     // laid out sideways until someone turns it upright, the way a phone stands on a nightstand
     val startsSideways: Boolean get() = this == BEDSIDE_TILES
 
     // the looks that read well across a room and stay smooth on a tv's gpu; the rest stay on phones
-    val availableOnTv: Boolean get() = this == FLAGSHIP || this == POSTER || this == VIDEO || this == TIMELINE || isBedside
+    val availableOnTv: Boolean get() = this == FLAGSHIP || this == APPLE_MUSIC || this == POSTER || this == VIDEO || this == TIMELINE || isBedside
 
     companion object {
         /** the styles these replaced, so a stored choice lands on its nearest successor */
@@ -752,6 +754,7 @@ enum class PlayerStyle(val displayName: String, val selectorName: String) {
         // the selector's columns, each look with its variants stacked under it, a swipe down away
         val selectorColumns: List<List<PlayerStyle>> = listOf(
             listOf(FLAGSHIP),
+            listOf(APPLE_MUSIC),
             listOf(TURNTABLE),
             listOf(VIDEO),
             listOf(IPOD),
