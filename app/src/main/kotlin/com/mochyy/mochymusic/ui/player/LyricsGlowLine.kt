@@ -349,14 +349,15 @@ fun LyricsGlowLine(
         textAlign = textAlign,
     ).withLetterMotionFeatures(wordMotion)
     // Luminous Apple Music glow color blending crisp white with subtle album accent tint
+    val glowStrength = com.mochyy.mochymusic.ui.component.UiCustomTheme.lyricsGlowStrength
     val activeGlowColor = remember(accentColor) {
         androidx.compose.ui.graphics.lerp(Color.White, accentColor, 0.25f)
     }
-    val activeTextShadow = remember(activeGlowColor) {
-        androidx.compose.ui.graphics.Shadow(
-            color = activeGlowColor.copy(alpha = 0.78f),
+    val activeTextShadow = remember(activeGlowColor, glowStrength) {
+        if (glowStrength <= 0.02f) null else androidx.compose.ui.graphics.Shadow(
+            color = activeGlowColor.copy(alpha = (0.78f * glowStrength).coerceIn(0f, 1f)),
             offset = Offset.Zero,
-            blurRadius = 26f,
+            blurRadius = (26f * glowStrength).coerceIn(4f, 44f),
         )
     }
     // kept above the sweep/plain switch, so the line already has its bold breaks the moment it goes plain again
@@ -460,7 +461,8 @@ fun LyricsGlowLine(
         modifier = Modifier
             .drawBehind {
                 if (suppressEffectsProvider()) return@drawBehind
-                val amp = waveAmplitudeState.value.coerceIn(0f, 1f)
+                val g = com.mochyy.mochymusic.ui.component.UiCustomTheme.lyricsGlowStrength
+                val amp = waveAmplitudeState.value.coerceIn(0f, 1f) * g
                 if (amp <= 0.02f || size.width < 1f || size.height < 1f) return@drawBehind
                 val cx = when {
                     alignment == LyricsAlignment.CENTER -> size.width * 0.5f
@@ -476,8 +478,8 @@ fun LyricsGlowLine(
                 }) {
                     drawCircle(
                         brush = Brush.radialGradient(
-                            0f to activeGlowColor.copy(alpha = 0.22f * amp),
-                            0.45f to activeGlowColor.copy(alpha = 0.09f * amp),
+                            0f to activeGlowColor.copy(alpha = (0.22f * amp).coerceIn(0f, 0.42f)),
+                            0.45f to activeGlowColor.copy(alpha = (0.09f * amp).coerceIn(0f, 0.20f)),
                             1f to Color.Transparent,
                             center = Offset.Zero,
                             radius = rx,
@@ -1230,11 +1232,12 @@ internal fun KaraokeSweepText(
             )
 
             if (reached) {
-                val litGlowShadow = remember(highlightColor) {
-                    androidx.compose.ui.graphics.Shadow(
-                        color = highlightColor.copy(alpha = 0.68f),
+                val g = com.mochyy.mochymusic.ui.component.UiCustomTheme.lyricsGlowStrength
+                val litGlowShadow = remember(highlightColor, g) {
+                    if (g <= 0.02f) null else androidx.compose.ui.graphics.Shadow(
+                        color = highlightColor.copy(alpha = (0.68f * g).coerceIn(0f, 1f)),
                         offset = Offset.Zero,
-                        blurRadius = 20f,
+                        blurRadius = (20f * g).coerceIn(4f, 36f),
                     )
                 }
                 Text(

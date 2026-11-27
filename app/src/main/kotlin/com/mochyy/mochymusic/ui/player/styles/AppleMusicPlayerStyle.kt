@@ -133,11 +133,16 @@ internal fun AppleMusicPlayerStyle(
         tones = tones,
         background = {
             Box(Modifier.fillMaxSize()) {
-                AmbientBackdrop(
-                    colors = ambient,
-                    time = if (preview) ({ 0f }) else backdropClock,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                val customBg = com.mochyy.mochymusic.ui.component.UiCustomTheme.customBgPath
+                if (com.mochyy.mochymusic.ui.component.UiCustomTheme.applyBgToPlayer && !customBg.isNullOrBlank()) {
+                    com.mochyy.mochymusic.ui.component.CustomUiWallpaperLayer(modifier = Modifier.fillMaxSize())
+                } else {
+                    AmbientBackdrop(
+                        colors = ambient,
+                        time = if (preview) ({ 0f }) else backdropClock,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -303,7 +308,7 @@ private fun AppleMusicHeroCover(
     scale: Float,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(com.mochyy.mochymusic.ui.component.UiCustomTheme.playerCoverCornerDp.dp)
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier

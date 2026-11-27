@@ -335,6 +335,9 @@ internal object SafeAppSettings {
             options = listOf(
                 PlayerStyle.FLAGSHIP.name to "Flagship",
                 PlayerStyle.APPLE_MUSIC.name to "Apple Music",
+                PlayerStyle.LIQUID_GLASS.name to "Liquid Glass",
+                PlayerStyle.VINYL_CD.name to "Vinyl CD",
+                PlayerStyle.MINIMAL_DARK.name to "Minimal Dark",
                 PlayerStyle.TURNTABLE.name to "Turntable",
                 PlayerStyle.POSTER.name to "Poster",
                 PlayerStyle.TIMELINE.name to "Timeline",

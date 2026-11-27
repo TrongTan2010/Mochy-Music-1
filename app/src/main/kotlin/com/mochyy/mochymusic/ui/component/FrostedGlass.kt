@@ -146,7 +146,7 @@ fun FrostedChromeGlass(
         GlassPillBackground(
             state = state,
             blurRadius = { GlassChromeBlurRadius },
-            tint = color.copy(alpha = FrostTintAlpha),
+            tint = color.copy(alpha = UiCustomTheme.glassOpacity.coerceIn(0.32f, 0.92f)),
             foundationColor = color,
             accentWash = accentWash,
             // Only reaches the margin's outer edge now, too far out to show.

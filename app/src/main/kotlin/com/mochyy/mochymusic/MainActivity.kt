@@ -1307,6 +1307,13 @@ class MainActivity : ComponentActivity() {
                                         currentRoute = currentRoute,
                                         modifier = Modifier.fillMaxSize(),
                                     )
+                                    if (com.mochyy.mochymusic.ui.component.UiCustomTheme.applyBgToApp &&
+                                        !com.mochyy.mochymusic.ui.component.UiCustomTheme.customBgPath.isNullOrBlank()
+                                    ) {
+                                        com.mochyy.mochymusic.ui.component.CustomUiWallpaperLayer(
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
                                     Row(Modifier.fillMaxSize()) {
                                     if (settingsPane) {
                                         com.mochyy.mochymusic.ui.screens.settings.SettingsListPane(
@@ -1565,6 +1572,23 @@ class MainActivity : ComponentActivity() {
                         speed = prefs[com.mochyy.mochymusic.constants.AnimationSpeedKey] ?: 1f,
                         elementBlur = prefs[com.mochyy.mochymusic.constants.ElementBlurKey] ?: true,
                         coverRadius = prefs[com.mochyy.mochymusic.constants.ThumbnailCornerRadiusKey] ?: 25f,
+                        customAccent = prefs[com.mochyy.mochymusic.constants.CustomAccentColorKey]
+                            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultAccentArgb,
+                        customDockCorner = prefs[com.mochyy.mochymusic.constants.CustomDockCornerKey]
+                            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultDockCornerDp,
+                        customGlassOpacity = prefs[com.mochyy.mochymusic.constants.CustomGlassOpacityKey]
+                            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultGlassOpacity,
+                        customLyricsGlow = prefs[com.mochyy.mochymusic.constants.CustomLyricsGlowKey]
+                            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultLyricsGlow,
+                        customPlayerCoverCorner = prefs[com.mochyy.mochymusic.constants.CustomPlayerCoverCornerKey]
+                            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultPlayerCoverCornerDp,
+                        customBgPath = prefs[com.mochyy.mochymusic.constants.CustomBgPathKey],
+                        customBgBlur = prefs[com.mochyy.mochymusic.constants.CustomBgBlurKey]
+                            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultBgBlurDp,
+                        customBgDim = prefs[com.mochyy.mochymusic.constants.CustomBgDimKey]
+                            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultBgDimAlpha,
+                        customBgApplyApp = prefs[com.mochyy.mochymusic.constants.CustomBgApplyAppKey] ?: true,
+                        customBgApplyPlayer = prefs[com.mochyy.mochymusic.constants.CustomBgApplyPlayerKey] ?: true,
                     )
                 }
                 .distinctUntilChanged()
@@ -1576,11 +1600,36 @@ class MainActivity : ComponentActivity() {
                     com.mochyy.mochymusic.ui.component.HomeCardCornerRadius = r.dp
                     com.mochyy.mochymusic.constants.GridThumbnailCornerRadius = (r * 0.6f).coerceIn(0f, 28f).dp
                     com.mochyy.mochymusic.constants.ThumbnailCornerRadius = (r * 0.35f).coerceIn(0f, 16f).dp
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.accentColor = Color(look.customAccent)
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.dockCornerDp = look.customDockCorner.coerceIn(10f, 32f)
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.glassOpacity = look.customGlassOpacity.coerceIn(0.32f, 0.92f)
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.lyricsGlowStrength = look.customLyricsGlow.coerceIn(0f, 1.6f)
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.playerCoverCornerDp = look.customPlayerCoverCorner.coerceIn(6f, 44f)
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.customBgPath = look.customBgPath?.takeIf { it.isNotBlank() }
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.bgBlurDp = look.customBgBlur.coerceIn(0f, 24f)
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.bgDimAlpha = look.customBgDim.coerceIn(0.15f, 0.85f)
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.applyBgToApp = look.customBgApplyApp
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.applyBgToPlayer = look.customBgApplyPlayer
                 }
         }
     }
 
-    private data class LookSettings(val animations: Boolean, val speed: Float, val elementBlur: Boolean, val coverRadius: Float)
+    private data class LookSettings(
+        val animations: Boolean,
+        val speed: Float,
+        val elementBlur: Boolean,
+        val coverRadius: Float,
+        val customAccent: Int,
+        val customDockCorner: Float,
+        val customGlassOpacity: Float,
+        val customLyricsGlow: Float,
+        val customPlayerCoverCorner: Float,
+        val customBgPath: String?,
+        val customBgBlur: Float,
+        val customBgDim: Float,
+        val customBgApplyApp: Boolean,
+        val customBgApplyPlayer: Boolean,
+    )
 
     // people who had the old lyrics shader switch off land on the matching shaderless lyric style, once (off main thread)
     private fun moveOffOldLyricsShaderSwitch() {

@@ -289,13 +289,18 @@ fun AppNavigationBar(
         androidx.compose.runtime.derivedStateOf { showCollapsedSearch && collapseProgress() > 0.25f }
     }
 
+    val customDockCorner = UiCustomTheme.dockCornerDp.dp
+    val dynamicDockShape = remember(customDockCorner) {
+        if (customDockCorner >= 31.dp) NavBarShape else RoundedCornerShape(customDockCorner)
+    }
+
     Box(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                 .padding(horizontal = 22.dp, vertical = 8.dp)
                 .align(Alignment.TopStart)
-                // Morphs layout bounds smoothly between full-width 64dp dock and 54dp circular Home orb on the left.
+                // Morphs layout bounds smoothly between full-width 64dp dock and 58dp circular Home orb on the left.
                 // Using exact morphed width ensures touches to the right reach the adjacent compact Mini-Player!
                 .layout { measurable, constraints ->
                     val c = collapseProgress().coerceIn(0f, 1f)
@@ -311,11 +316,12 @@ fun AppNavigationBar(
                     }
                 }
                 .press3D(maxTilt = 4f, pressedScale = 0.985f)
-                .then(if (moduleGlass?.shadow == false) Modifier else Modifier.dropShadow(NavBarShape, ChromeShadow))
-                .clip(NavBarShape)
+                .then(if (moduleGlass?.shadow == false) Modifier else Modifier.dropShadow(dynamicDockShape, ChromeShadow))
+                .clip(dynamicDockShape)
                 .drawWithContent {
                     drawContent()
-                    if (moduleGlass?.outline != false) drawChromeOutline(Offset.Zero, size, cornerRadius = size.height / 2f)
+                    val outlineR = minOf(size.height / 2f, customDockCorner.toPx())
+                    if (moduleGlass?.outline != false) drawChromeOutline(Offset.Zero, size, cornerRadius = outlineR)
                 }
         ) {
             FrostedChromeGlass(

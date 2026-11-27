@@ -51,6 +51,12 @@ fun AmbientBackdrop(
     modifier: Modifier = Modifier,
     time: () -> Float,
 ) {
+    if (com.mochyy.mochymusic.ui.component.UiCustomTheme.applyBgToPlayer &&
+        !com.mochyy.mochymusic.ui.component.UiCustomTheme.customBgPath.isNullOrBlank()
+    ) {
+        com.mochyy.mochymusic.ui.component.CustomUiWallpaperLayer(modifier = modifier)
+        return
+    }
     val currentTime by rememberUpdatedState(time)
     // only tells the drawing when the next step is due, however often the clock itself ticks
     val step by remember { derivedStateOf { floor(currentTime() * StepsPerSecond) } }

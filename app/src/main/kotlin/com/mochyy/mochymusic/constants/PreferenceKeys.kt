@@ -705,6 +705,12 @@ enum class PlayerStyle(val displayName: String, val selectorName: String) {
     FLAGSHIP("Flagship", "Flagship"),
     // dedicated Apple Music iOS 18/26 player: animated mesh backdrop, breathing hero cover, volume slider & toolbar
     APPLE_MUSIC("Apple Music", "Apple Music"),
+    // iOS 26 / ColorOS 17 frosted floating glass card player
+    LIQUID_GLASS("Liquid Glass", "Liquid Glass"),
+    // continuously spinning vinyl/CD disc with album label and minimal luminous controls
+    VINYL_CD("Vinyl CD", "Vinyl CD"),
+    // editorial dark player with shuffle/repeat transport and embedded live lyrics preview card
+    MINIMAL_DARK("Minimal Dark", "Minimal Dark"),
     /** the flagship with a record player for its cover, whose arm is the seek bar */
     TURNTABLE("Turntable", "Turntable"),
     // the song's youtube video across the whole screen, turned sideways, with its lyrics in a pane
@@ -733,13 +739,15 @@ enum class PlayerStyle(val displayName: String, val selectorName: String) {
     val hasFullEditor: Boolean get() = this == FLAGSHIP
 
     // the styles whose menu has a rotate button, each with a landscape layout of its own to turn into
-    val turnable: Boolean get() = this == APPLE_MUSIC || this == TURNTABLE || this == POSTER || this == TIMELINE || this == LYRICS || this == MODULE || isBedside
+    val turnable: Boolean get() = this == APPLE_MUSIC || this == LIQUID_GLASS || this == VINYL_CD || this == MINIMAL_DARK ||
+        this == TURNTABLE || this == POSTER || this == TIMELINE || this == LYRICS || this == MODULE || isBedside
 
     // laid out sideways until someone turns it upright, the way a phone stands on a nightstand
     val startsSideways: Boolean get() = this == BEDSIDE_TILES
 
     // the looks that read well across a room and stay smooth on a tv's gpu; the rest stay on phones
-    val availableOnTv: Boolean get() = this == FLAGSHIP || this == APPLE_MUSIC || this == POSTER || this == VIDEO || this == TIMELINE || isBedside
+    val availableOnTv: Boolean get() = this == FLAGSHIP || this == APPLE_MUSIC || this == LIQUID_GLASS || this == VINYL_CD ||
+        this == MINIMAL_DARK || this == POSTER || this == VIDEO || this == TIMELINE || isBedside
 
     companion object {
         /** the styles these replaced, so a stored choice lands on its nearest successor */
@@ -755,6 +763,9 @@ enum class PlayerStyle(val displayName: String, val selectorName: String) {
         val selectorColumns: List<List<PlayerStyle>> = listOf(
             listOf(FLAGSHIP),
             listOf(APPLE_MUSIC),
+            listOf(LIQUID_GLASS),
+            listOf(VINYL_CD),
+            listOf(MINIMAL_DARK),
             listOf(TURNTABLE),
             listOf(VIDEO),
             listOf(IPOD),
@@ -1423,3 +1434,15 @@ val AppFontModeKey = stringPreferencesKey("appFontMode")
 val CustomFontIdKey = stringPreferencesKey("customFontId")
 val CustomFontNameKey = stringPreferencesKey("customFontName")
 val FontCustomizerConfigKey = stringPreferencesKey("fontCustomizerConfig")
+
+// Free UI Customizer keys (accent color, dock/mini-player corner, glass opacity, lyrics glow, player cover corner, wallpaper)
+val CustomAccentColorKey = intPreferencesKey("customAccentColor")
+val CustomDockCornerKey = floatPreferencesKey("customDockCorner")
+val CustomGlassOpacityKey = floatPreferencesKey("customGlassOpacity")
+val CustomLyricsGlowKey = floatPreferencesKey("customLyricsGlow")
+val CustomPlayerCoverCornerKey = floatPreferencesKey("customPlayerCoverCorner")
+val CustomBgPathKey = stringPreferencesKey("customBgPath")
+val CustomBgBlurKey = floatPreferencesKey("customBgBlur")
+val CustomBgDimKey = floatPreferencesKey("customBgDim")
+val CustomBgApplyAppKey = booleanPreferencesKey("customBgApplyApp")
+val CustomBgApplyPlayerKey = booleanPreferencesKey("customBgApplyPlayer")

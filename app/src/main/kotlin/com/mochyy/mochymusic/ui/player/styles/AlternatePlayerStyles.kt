@@ -79,6 +79,9 @@ fun AlternatePlayerStyle(
 ) {
     when (style) {
         PlayerStyle.APPLE_MUSIC -> AppleMusicPlayerStyle(actions, modifier, preview)
+        PlayerStyle.LIQUID_GLASS -> LiquidGlassPlayerStyle(actions, modifier, preview)
+        PlayerStyle.VINYL_CD -> VinylCdPlayerStyle(actions, modifier, preview)
+        PlayerStyle.MINIMAL_DARK -> MinimalDarkPlayerStyle(actions, modifier, preview)
         PlayerStyle.POSTER -> PosterPlayerStyle(actions, modifier, preview)
         PlayerStyle.TIMELINE -> TimelinePlayerStyle(actions, modifier, preview)
         PlayerStyle.LYRICS -> LyricsPlayerStyle(actions, modifier, preview)

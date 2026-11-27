@@ -258,7 +258,9 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         CollapsedDockModeBubble()
-                        PlayerStylePickerBubble()
+                        PlayerStylePickerBubble(
+                            onOpenCustomizer = { navController.navigate(UiCustomizerRoute) },
+                        )
                         SoundCloudSourceBubble(
                             onOpenSoundCloud = {
                                 navController.navigate(com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudRoute)
@@ -529,7 +531,9 @@ private fun CollapsedDockModeBubble() {
 }
 
 @Composable
-private fun PlayerStylePickerBubble() {
+private fun PlayerStylePickerBubble(
+    onOpenCustomizer: () -> Unit,
+) {
     val (currentStyle, setStyle) = com.mochyy.mochymusic.utils.rememberEnumPreference(
         com.mochyy.mochymusic.constants.PlayerStyleKey,
         defaultValue = com.mochyy.mochymusic.constants.PlayerStyle.FLAGSHIP,
@@ -537,6 +541,9 @@ private fun PlayerStylePickerBubble() {
     val choices = remember {
         listOf(
             com.mochyy.mochymusic.constants.PlayerStyle.APPLE_MUSIC to "Apple Music",
+            com.mochyy.mochymusic.constants.PlayerStyle.LIQUID_GLASS to "Liquid Glass",
+            com.mochyy.mochymusic.constants.PlayerStyle.VINYL_CD to "Vinyl CD",
+            com.mochyy.mochymusic.constants.PlayerStyle.MINIMAL_DARK to "Minimal Dark",
             com.mochyy.mochymusic.constants.PlayerStyle.FLAGSHIP to "Flagship",
             com.mochyy.mochymusic.constants.PlayerStyle.TURNTABLE to "Turntable",
             com.mochyy.mochymusic.constants.PlayerStyle.POSTER to "Poster",
@@ -616,6 +623,32 @@ private fun PlayerStylePickerBubble() {
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                 )
             }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(com.mochyy.mochymusic.ui.component.AppleMusicAccent.copy(alpha = 0.20f))
+                .clickable(onClick = onOpenCustomizer)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.palette),
+                contentDescription = null,
+                tint = com.mochyy.mochymusic.ui.component.AppleMusicAccent,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Tùy biến giao diện tự do & Thay ảnh nền",
+                fontFamily = InterFontFamily,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+            )
         }
     }
 }

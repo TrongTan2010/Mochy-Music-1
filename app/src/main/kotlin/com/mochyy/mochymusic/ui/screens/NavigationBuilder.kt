@@ -900,4 +900,8 @@ fun NavGraphBuilder.navigationBuilder(
     composable(com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudRoute) {
         com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudScreen(navController = navController)
     }
+
+    composable(com.mochyy.mochymusic.ui.screens.settings.UiCustomizerRoute) {
+        com.mochyy.mochymusic.ui.screens.settings.UiCustomizerScreen(navController = navController)
+    }
 }

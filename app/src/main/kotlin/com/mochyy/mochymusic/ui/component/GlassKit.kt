@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.clip
@@ -215,8 +216,76 @@ fun Modifier.glassRoot(state: GlassState, isActive: () -> Boolean = { true }): M
  */
 val GlassChromeColor = Color(0xFF16161E)
 
-/** Apple Music signature crimson-pink accent for the Liquid Glass floating dock and mini-player. */
-val AppleMusicAccent = Color(0xFFFA2D48)
+/**
+ * Live reactive UI Customizer state — updated from DataStore and from [UiCustomizerScreen]
+ * so every dock, mini-player, lyrics line, and player style reacts in real time.
+ */
+object UiCustomTheme {
+    const val DefaultAccentArgb: Int = 0xFFFA2D48.toInt()
+    const val DefaultDockCornerDp: Float = 32f
+    const val DefaultGlassOpacity: Float = 0.68f
+    const val DefaultLyricsGlow: Float = 1.0f
+    const val DefaultPlayerCoverCornerDp: Float = 22f
+    const val DefaultBgBlurDp: Float = 8f
+    const val DefaultBgDimAlpha: Float = 0.48f
+
+    var accentColor by mutableStateOf(Color(DefaultAccentArgb))
+    var dockCornerDp by mutableFloatStateOf(DefaultDockCornerDp)
+    var glassOpacity by mutableFloatStateOf(DefaultGlassOpacity)
+    var lyricsGlowStrength by mutableFloatStateOf(DefaultLyricsGlow)
+    var playerCoverCornerDp by mutableFloatStateOf(DefaultPlayerCoverCornerDp)
+
+    // Custom background photo picked by the user from gallery (stored in app filesDir)
+    var customBgPath by mutableStateOf<String?>(null)
+    var bgBlurDp by mutableFloatStateOf(DefaultBgBlurDp)
+    var bgDimAlpha by mutableFloatStateOf(DefaultBgDimAlpha)
+    var applyBgToApp by mutableStateOf(true)
+    var applyBgToPlayer by mutableStateOf(true)
+}
+
+/**
+ * Renders the user's custom gallery wallpaper with configurable blur & dark dim scrim
+ * so text and glass surfaces remain crisp over any photo.
+ */
+@Composable
+fun CustomUiWallpaperLayer(
+    modifier: Modifier = Modifier,
+    blurDp: Float = UiCustomTheme.bgBlurDp,
+    dimAlpha: Float = UiCustomTheme.bgDimAlpha,
+    path: String? = UiCustomTheme.customBgPath,
+) {
+    if (path.isNullOrBlank()) return
+    Box(modifier = modifier.fillMaxSize()) {
+        coil3.compose.AsyncImage(
+            model = if (path.startsWith("/") || path.startsWith("file://")) java.io.File(path.removePrefix("file://")) else path,
+            contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (blurDp > 0.5f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        Modifier.graphicsLayer {
+                            val px = blurDp.dp.toPx()
+                            renderEffect = android.graphics.RenderEffect
+                                .createBlurEffect(px, px, android.graphics.Shader.TileMode.CLAMP)
+                                .asComposeRenderEffect()
+                        }
+                    } else Modifier
+                ),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    drawRect(Color.Black.copy(alpha = dimAlpha.coerceIn(0.10f, 0.90f)))
+                },
+        )
+    }
+}
+
+/** Dynamic accent color (defaults to Apple Music Coral Red #FA2D48, customizable in UI Customizer). */
+val AppleMusicAccent: Color
+    get() = UiCustomTheme.accentColor
 
 /** Backdrop blur for that chrome, heavier than the 24f default so it reads as properly frosted. */
 const val GlassChromeBlurRadius = 56f

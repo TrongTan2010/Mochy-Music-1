@@ -333,8 +333,8 @@ fun BottomSheet(
             // a look's glass that draws its own edge leaves mochy's hairline and shadow off the mini player
             val moduleGlass = rememberChromeModuleGlass()
             val currentPillFrame by androidx.compose.runtime.rememberUpdatedState(pillFrame)
-            // Full semicircular capsule ends matching the Floating Glass Dock
-            val pillCorner = pillFrame.height / 2
+            // Customizable Mini-Player corner radius (32dp = full semicircular capsule matching the Dock)
+            val pillCorner = minOf(pillFrame.height / 2, UiCustomTheme.dockCornerDp.dp)
 
             val sheetClipShape = remember {
                 object : androidx.compose.ui.graphics.Shape {
