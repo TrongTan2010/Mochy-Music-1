@@ -1444,6 +1444,15 @@ fun HomeScreen(
                 }
 
                 // nothing but bones while the launch intro plays; the rows reveal once it lands
+                if (!launchHold) {
+                    item(key = "home_soundcloud_banner", contentType = "soundcloud_banner") {
+                        HomeSoundCloudBanner(
+                            onClick = { navController.navigate(com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudRoute) },
+                            modifier = Modifier.padding(horizontal = HomeContentInset),
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+                }
                 if (!launchHold) homeSections.forEach { section ->
                     when (section) {
                         HomeSection.Pinned -> {
@@ -1865,7 +1874,9 @@ fun HomeScreen(
                         )
                     }
 
-                    Box(
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier
                             .launchRise(order = 0, distance = HomeTopBarRise)
                             .graphicsLayer {
@@ -1874,41 +1885,65 @@ fun HomeScreen(
                                 scaleY = scale
                                 transformOrigin = TransformOrigin(1f, 0.5f)
                             }
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(50))
-                            .clickable { navController.navigateToTab("settings") },
-                        contentAlignment = Alignment.CenterEnd
+                            .height(44.dp),
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 4.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFF5500).copy(alpha = 0.22f))
+                                .border(0.8.dp, Color(0xFFFF5500).copy(alpha = 0.48f), CircleShape)
+                                .clickable {
+                                    navController.navigate(com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudRoute)
+                                },
+                            contentAlignment = Alignment.Center,
                         ) {
-            val avatarBoundsModifier = Modifier
-                            if (profileImageUrl != null) {
-                                AsyncImage(
-                                    model = profileImageRequest,
-                                    placeholder = painterResource(R.drawable.person),
-                                    error = painterResource(R.drawable.person),
-                                    contentDescription = stringResource(R.string.profile_label),
-                                    modifier = avatarBoundsModifier
-                                        .size(36.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Box(
-                                    modifier = avatarBoundsModifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.person),
+                            Icon(
+                                painter = painterResource(R.drawable.radio),
+                                contentDescription = "SoundCloud",
+                                tint = Color(0xFFFF6A1F),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(50))
+                                .clickable { navController.navigateToTab("settings") },
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                val avatarBoundsModifier = Modifier
+                                if (profileImageUrl != null) {
+                                    AsyncImage(
+                                        model = profileImageRequest,
+                                        placeholder = painterResource(R.drawable.person),
+                                        error = painterResource(R.drawable.person),
                                         contentDescription = stringResource(R.string.profile_label),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = avatarBoundsModifier
+                                            .size(36.dp)
+                                            .clip(CircleShape),
+                                        contentScale = ContentScale.Crop
                                     )
+                                } else {
+                                    Box(
+                                        modifier = avatarBoundsModifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.person),
+                                            contentDescription = stringResource(R.string.profile_label),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1920,5 +1955,75 @@ fun HomeScreen(
 
         }
     }
+    }
+}
+
+@Composable
+private fun HomeSoundCloudBanner(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scOrange = Color(0xFFFF5500)
+    val scOrangeSoft = Color(0xFFFF7A33)
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(
+                    listOf(
+                        scOrange.copy(alpha = 0.24f),
+                        Color(0xFF1A1614),
+                    )
+                )
+            )
+            .border(0.8.dp, scOrange.copy(alpha = 0.36f), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Brush.linearGradient(listOf(scOrange, scOrangeSoft))),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.radio),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(21.dp),
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "SoundCloud",
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.5.sp,
+                color = Color.White,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Đăng nhập, tìm nhạc, thịnh hành & bài đã thích",
+                fontFamily = InterFontFamily,
+                fontSize = 12.sp,
+                color = Color.White.copy(alpha = 0.68f),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Icon(
+            painter = painterResource(R.drawable.navigate_next),
+            contentDescription = null,
+            tint = scOrangeSoft,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
