@@ -976,6 +976,33 @@ class MainActivity : ComponentActivity() {
                                 forceShowSetup = false
                             }
                         ) {
+                            // iOS 26 / Apple Music scroll-to-collapse for Floating Glass Dock & Mini-Player
+                            var dockCollapsed by remember { mutableStateOf(false) }
+                            LaunchedEffect(currentRoute) { dockCollapsed = false }
+                            val dockCollapseProgress by animateFloatAsState(
+                                targetValue = if (dockCollapsed && playerBottomSheetState.progress <= 0.01f && wideBar == null) 1f else 0f,
+                                animationSpec = spring(dampingRatio = 0.86f, stiffness = 320f),
+                                label = "dockScrollCollapse",
+                            )
+                            val dockCollapseScrollConnection = remember {
+                                object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+                                    private var accum = 0f
+                                    override fun onPreScroll(
+                                        available: androidx.compose.ui.geometry.Offset,
+                                        source: androidx.compose.ui.input.nestedscroll.NestedScrollSource,
+                                    ): androidx.compose.ui.geometry.Offset {
+                                        val dy = available.y
+                                        if (dy < 0f) {
+                                            accum = if (accum > 0f) dy else accum + dy
+                                            if (accum < -42f) dockCollapsed = true
+                                        } else if (dy > 0f) {
+                                            accum = if (accum < 0f) dy else accum + dy
+                                            if (accum > 24f) dockCollapsed = false
+                                        }
+                                        return androidx.compose.ui.geometry.Offset.Zero
+                                    }
+                                }
+                            }
                             Scaffold(
                             snackbarHost = { SnackbarHost(snackbarHostState) },
                             topBar = {
@@ -1096,15 +1123,20 @@ class MainActivity : ComponentActivity() {
                                         }
 
                                         if (!hideAppChrome.value) {
-                                        // the bar slides away as the player opens, every piece of it together
+                                        // the bar slides away as the player opens, and tucks away smoothly when scrolling down
                                         val barMotion = Modifier
                                             .align(Alignment.BottomCenter)
                                             .launchRise(order = 3)
                                             .height(bottomInset + navPadding)
                                             .graphicsLayer {
                                                 val progress = playerBottomSheetState.progress.coerceIn(0f, 1f)
-                                                translationY = navBarTotalHeight.toPx() * progress
-                                                alpha = (1f - progress / 0.6f).coerceIn(0f, 1f)
+                                                val collapse = dockCollapseProgress
+                                                val hideFactor = maxOf(progress, collapse)
+                                                translationY = navBarTotalHeight.toPx() * hideFactor
+                                                val s = 1f - 0.10f * collapse * (1f - progress)
+                                                scaleX = s
+                                                scaleY = s
+                                                alpha = (1f - progress / 0.6f).coerceIn(0f, 1f) * (1f - collapse)
                                             }
                                         // the wide pill shrinks onto the tabs while nothing is playing, read while laying out
                                         val withPlayer = animateFloatAsState(
@@ -1128,7 +1160,15 @@ class MainActivity : ComponentActivity() {
                                                 state = playerBottomSheetState,
                                                 navController = navController,
                                                 pureBlack = pureBlack,
-                                                modifier = Modifier.launchRise(order = 3),
+                                                modifier = Modifier
+                                                    .launchRise(order = 3)
+                                                    .graphicsLayer {
+                                                        val progress = playerBottomSheetState.progress.coerceIn(0f, 1f)
+                                                        val collapse = dockCollapseProgress * (1f - progress)
+                                                        if (collapse > 0.001f) {
+                                                            translationY = navBarTotalHeight.toPx() * 0.78f * collapse
+                                                        }
+                                                    },
                                             )
                                         }
 
@@ -1172,6 +1212,7 @@ class MainActivity : ComponentActivity() {
                             },
                             modifier = Modifier
                                 .fillMaxSize()
+                                .nestedScroll(dockCollapseScrollConnection)
                                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
                         ) {
                             Row(Modifier.fillMaxSize()) {
