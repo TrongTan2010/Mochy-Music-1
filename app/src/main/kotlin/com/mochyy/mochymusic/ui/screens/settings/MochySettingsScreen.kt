@@ -482,7 +482,7 @@ private fun CollapsedDockModeBubble() {
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.search),
+                    painter = painterResource(R.drawable.search_outline),
                     contentDescription = null,
                     tint = com.mochyy.mochymusic.ui.component.AppleMusicAccent,
                     modifier = Modifier.size(20.dp),
