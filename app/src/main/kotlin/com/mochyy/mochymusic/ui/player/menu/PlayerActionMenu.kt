@@ -690,15 +690,8 @@ private fun DynamicCoverBlurRow() {
 private fun QuickPlaybackSourceRow(songId: String?, onDismiss: () -> Unit) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val service = playerConnection.service
-    val playingFrom by remember(songId) {
-        if (songId != null) {
-            service.playingFrom.let { flow ->
-                kotlinx.coroutines.flow.flow {
-                    flow.collect { map -> emit(map[songId]) }
-                }
-            }
-        } else flowOf(null)
-    }.collectAsState(initial = null)
+    val playingFromMap by service.playingFrom.collectAsState()
+    val playingFrom = songId?.let { playingFromMap[it] }
     val isSoundCloud = playingFrom?.providerId == com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.Id
     val targetId = if (isSoundCloud) {
         com.mochyy.mochymusic.modules.SourceModules.YouTubeId
