@@ -896,4 +896,8 @@ fun NavGraphBuilder.navigationBuilder(
     coverSourceComposable("library/artists") {
         com.mochyy.mochymusic.ui.screens.library.LibraryArtistsScreen(navController = navController)
     }
+
+    composable(com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudRoute) {
+        com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudScreen(navController = navController)
+    }
 }

@@ -258,7 +258,11 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         CollapsedDockModeBubble()
-                        SoundCloudSourceBubble()
+                        SoundCloudSourceBubble(
+                            onOpenSoundCloud = {
+                                navController.navigate(com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudRoute)
+                            },
+                        )
 
                         // in the order of the design: sound first, then how the app acts and looks, then the rest
                         CategoryBubble(
@@ -524,7 +528,9 @@ private fun CollapsedDockModeBubble() {
 }
 
 @Composable
-private fun SoundCloudSourceBubble() {
+private fun SoundCloudSourceBubble(
+    onOpenSoundCloud: () -> Unit,
+) {
     val modulesVm: com.mochyy.mochymusic.viewmodels.ModulesViewModel =
         androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
     val entries by modulesVm.entries.collectAsState()
@@ -639,6 +645,32 @@ private fun SoundCloudSourceBubble() {
                         .padding(vertical = 8.dp),
                 )
             }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(soundCloudOrange.copy(alpha = 0.18f))
+                .clickable(onClick = onOpenSoundCloud)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.person),
+                contentDescription = null,
+                tint = soundCloudOrange,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Mở mục SoundCloud & Đăng nhập tài khoản",
+                fontFamily = InterFontFamily,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+            )
         }
     }
 }

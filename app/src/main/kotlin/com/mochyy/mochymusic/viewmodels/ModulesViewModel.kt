@@ -71,6 +71,10 @@ class ModulesViewModel @Inject constructor(
 
     fun nameOf(id: String): String = modules.nameOf(id)
 
+    fun moduleInstance(id: String): com.mochyy.mochymusic.module.MochyModule? = registry.module(id)
+
+    fun refresh() = modules.refresh()
+
     private val _steps = MutableStateFlow<List<DiagnosticStep>>(emptyList())
     val steps: StateFlow<List<DiagnosticStep>> = _steps.asStateFlow()
 

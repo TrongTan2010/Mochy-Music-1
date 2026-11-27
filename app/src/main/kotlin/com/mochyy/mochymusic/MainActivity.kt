@@ -983,8 +983,16 @@ class MainActivity : ComponentActivity() {
                             )
                             var dockCollapsed by remember { mutableStateOf(false) }
                             LaunchedEffect(currentRoute) { dockCollapsed = false }
+                            LaunchedEffect(playerBottomSheetState.isDismissed) {
+                                if (playerBottomSheetState.isDismissed) dockCollapsed = false
+                            }
                             val dockCollapseState = animateFloatAsState(
-                                targetValue = if (dockCollapsed && playerBottomSheetState.progress <= 0.01f && wideBar == null) 1f else 0f,
+                                targetValue = if (
+                                    dockCollapsed &&
+                                    !playerBottomSheetState.isDismissed &&
+                                    playerBottomSheetState.progress <= 0.01f &&
+                                    wideBar == null
+                                ) 1f else 0f,
                                 animationSpec = spring(dampingRatio = 0.78f, stiffness = 290f),
                                 label = "dockScrollCollapse",
                             )
@@ -996,6 +1004,12 @@ class MainActivity : ComponentActivity() {
                                         available: androidx.compose.ui.geometry.Offset,
                                         source: androidx.compose.ui.input.nestedscroll.NestedScrollSource,
                                     ): androidx.compose.ui.geometry.Offset {
+                                        // Only morph/collapse the dock when a song is loaded (mini-player active)
+                                        if (playerBottomSheetState.isDismissed) {
+                                            if (dockCollapsed) dockCollapsed = false
+                                            accum = 0f
+                                            return androidx.compose.ui.geometry.Offset.Zero
+                                        }
                                         val dy = available.y
                                         if (dy < 0f) {
                                             accum = if (accum > 0f) dy else accum + dy

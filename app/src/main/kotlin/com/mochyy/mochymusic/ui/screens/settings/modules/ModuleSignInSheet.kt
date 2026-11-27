@@ -23,6 +23,7 @@ import com.mochyy.mochymusic.module.AccountState
 import com.mochyy.mochymusic.module.MochyModule
 import com.mochyy.mochymusic.module.SignInSpec
 import com.mochyy.mochymusic.module.applemusic.AppleMusicModule
+import com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule
 import com.mochyy.mochymusic.modules.security.ModuleUrlGuard
 import com.mochyy.mochymusic.ui.component.PopupSheetHandle
 import com.mochyy.mochymusic.ui.component.PopupSheetState
@@ -53,7 +54,7 @@ private fun isAllowedSignInUrl(url: String, builtIn: Boolean): Boolean {
 /** opens the module's sign-in; [onDone] hears how it went once the account is in, the sheet closes itself */
 fun PopupSheetState.showModuleSignInSheet(module: MochyModule, viewModel: ModulesViewModel, onDone: (AccountState) -> Unit) {
     val spec = module.signIn ?: return
-    val builtIn = module.info.id == AppleMusicModule.Id
+    val builtIn = module.info.id == AppleMusicModule.Id || module.info.id == SoundCloudModule.Id
     if (!isAllowedSignInUrl(spec.startUrl, builtIn) || spec.sessionOrigins.any { !isAllowedSignInUrl(it, builtIn) }) {
         onDone(AccountState.Expired("lol nice try"))
         return
@@ -114,6 +115,14 @@ private fun ModuleSignInContent(
                     onApplePageProbe = { viewModel.onApplePageProbe(id, it, onDone) },
                     onCookies = { viewModel.onAppleCookies(id, it, onDone) },
                 )
+                if (id == SoundCloudModule.Id) {
+                    val cookies = runCatching {
+                        android.webkit.CookieManager.getInstance().getCookie("https://soundcloud.com")
+                    }.getOrNull()
+                    if (!cookies.isNullOrBlank() && cookies.contains("oauth_token=")) {
+                        viewModel.onSignInHeader(id, "cookie", cookies, "https://soundcloud.com/", onDone)
+                    }
+                }
             },
             onExit = onClose,
             onUrlChange = { url = it },

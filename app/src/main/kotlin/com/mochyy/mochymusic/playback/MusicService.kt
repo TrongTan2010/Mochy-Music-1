@@ -2213,6 +2213,7 @@ class MusicService :
                 }
             }
         }
+        if (mediaId.startsWith("SC_")) return
         if (!database.hasRelatedSongs(mediaId)) {
             val relatedEndpoint =
                 YouTube.next(WatchEndpoint(videoId = mediaId)).getOrNull()?.relatedEndpoint
@@ -5653,6 +5654,25 @@ class MusicService :
         // offline: no provider is asked; the song plays if it's cached, and is skipped if not.
         // An imported file is never looked for online, even one whose file has gone missing.
         if (com.mochyy.mochymusic.utils.OfflineMode.isOn || mediaId.startsWith("LOCAL_")) return null
+        if (mediaId.startsWith("SC_")) {
+            val scModule = sourceModules.module(com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.Id)
+                as? com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule
+            if (scModule != null) {
+                val resolved = withContext(Dispatchers.IO) {
+                    runCatching {
+                        scModule.resolveDirectTrackId(
+                            mediaId.removePrefix("SC_"),
+                            sourceModules.playbackPicks(scModule.info.id, scModule),
+                        )
+                    }.getOrNull()
+                }
+                if (resolved is com.mochyy.mochymusic.module.ResolveResult.Found) {
+                    val safe = com.mochyy.mochymusic.modules.security.ModuleUrlGuard.sanitizeStream(resolved.stream)
+                    if (safe != null) return moduleStream(mediaId, scModule, safe)
+                }
+            }
+            throw com.mochyy.mochymusic.playback.custom.NoProviderException("Không thể phát bài hát này từ SoundCloud")
+        }
         forcedRoutes[mediaId]?.let { forced ->
             if (forced.providerId == com.mochyy.mochymusic.modules.SourceModules.YouTubeId) return youTubeRoute(mediaId)
             forcedModuleStream(mediaId, forced)?.let { return it }
