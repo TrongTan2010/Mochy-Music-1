@@ -54,6 +54,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -327,6 +328,7 @@ fun BottomSheet(
 
             // where the mini player sits across the screen, and whether the wide bar's glass already lies under it
             val pillFrame = LocalMiniPillFrame.current
+            val dockCollapse = LocalDockCollapseProgress.current
             // a look's glass that draws its own edge leaves mochy's hairline and shadow off the mini player
             val moduleGlass = rememberChromeModuleGlass()
             val currentPillFrame by androidx.compose.runtime.rememberUpdatedState(pillFrame)
@@ -374,7 +376,7 @@ fun BottomSheet(
                 // The mini player's faint shadow. The sheet's clip would cut it off, so it's a
                 // layer of its own placed and tilted exactly like the sheet, and it fades with the
                 // hairline. It stays the pill's size: the opening sheet grows over it.
-                if (!pillFrame.merged && moduleGlass?.shadow != false) PillShadow(state, pillPress, pillFrame)
+                if (!pillFrame.merged && moduleGlass?.shadow != false) PillShadow(state, pillPress, pillFrame, dockCollapse)
 
                 Box(
                     modifier = Modifier
@@ -383,8 +385,10 @@ fun BottomSheet(
                         .height(state.expandedBound)
                         .graphicsLayer {
                             val p = state.progress.coerceIn(0f, 1f)
+                            val c = if (pillFrame.merged) 0f else dockCollapse().coerceIn(0f, 1f) * (1f - p)
+                            val extraStart = DockOrbClearance * c
                             sheetClipShape.cr = androidx.compose.ui.unit.lerp(pillCorner, 0.dp, p).toPx()
-                            sheetClipShape.left = androidx.compose.ui.unit.lerp(pillFrame.start, 0.dp, p).toPx()
+                            sheetClipShape.left = (androidx.compose.ui.unit.lerp(pillFrame.start, 0.dp, p) + extraStart).toPx()
                             sheetClipShape.right = androidx.compose.ui.unit.lerp(pillFrame.end, 0.dp, p).toPx()
                             sheetClipShape.visibleHeight = androidx.compose.ui.unit.lerp(currentPillFrame.height, state.expandedBound, p).toPx()
 
@@ -398,7 +402,8 @@ fun BottomSheet(
                             // the pill's hairline fades out as it opens (it used to drop in one frame at 5%); the wide bar draws its own round both halves
                             val edge = 1f - p / PillEdgeFadeEnd
                             if (edge > 0f && !pillFrame.merged && moduleGlass?.outline != false) {
-                                val left = androidx.compose.ui.unit.lerp(pillFrame.start, 0.dp, p).toPx()
+                                val c = dockCollapse().coerceIn(0f, 1f) * (1f - p)
+                                val left = (androidx.compose.ui.unit.lerp(pillFrame.start, 0.dp, p) + DockOrbClearance * c).toPx()
                                 val right = androidx.compose.ui.unit.lerp(pillFrame.end, 0.dp, p).toPx()
                                 drawChromeOutline(
                                     topLeft = androidx.compose.ui.geometry.Offset(left, 0f),
@@ -418,7 +423,7 @@ fun BottomSheet(
                             // to tell apart from a button's.
                             awaitEachGesture {
                                 val down = awaitFirstDown()
-                                if (!state.isCollapsed) return@awaitEachGesture
+                                if (!state.isCollapsed || down.position.x < sheetClipShape.left) return@awaitEachGesture
                                 down.consume()
                                 val up = waitForUpOrCancellation() ?: return@awaitEachGesture
                                 up.consume()
@@ -761,7 +766,12 @@ fun BottomSheet(
 
 // its own function, so the shadow showing or hiding at 8% open recomposes only this
 @Composable
-private fun BoxScope.PillShadow(state: BottomSheetState, pillPress: PillPress, pillFrame: MiniPillFrame) {
+private fun BoxScope.PillShadow(
+    state: BottomSheetState,
+    pillPress: PillPress,
+    pillFrame: MiniPillFrame,
+    dockCollapse: () -> Float = { 0f },
+) {
     val showPillShadow by remember(state) {
         derivedStateOf { !state.isDismissed && state.progress < PillEdgeFadeEnd }
     }
@@ -779,9 +789,18 @@ private fun BoxScope.PillShadow(state: BottomSheetState, pillPress: PillPress, p
         ) {
             Box(
                 modifier = Modifier
-                    .padding(start = pillFrame.start, end = pillFrame.end)
-                    .fillMaxWidth()
-                    .height(pillFrame.height)
+                    .layout { measurable, constraints ->
+                        val p = state.progress.coerceIn(0f, 1f)
+                        val c = dockCollapse().coerceIn(0f, 1f) * (1f - p)
+                        val leftPx = (pillFrame.start + DockOrbClearance * c).roundToPx()
+                        val rightPx = pillFrame.end.roundToPx()
+                        val w = (constraints.maxWidth - leftPx - rightPx).coerceAtLeast(1)
+                        val h = pillFrame.height.roundToPx().coerceAtLeast(1)
+                        val placeable = measurable.measure(androidx.compose.ui.unit.Constraints.fixed(w, h))
+                        layout(constraints.maxWidth, h) {
+                            placeable.place(leftPx, 0)
+                        }
+                    }
                     .dropShadow(PillShape, ChromeShadow)
             )
         }

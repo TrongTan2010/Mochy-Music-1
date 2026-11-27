@@ -27,19 +27,23 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
@@ -234,6 +238,10 @@ fun AppNavigationBar(
     onOpenRoute: (String) -> Unit = {},
     /** the player is over the app, so a look's moving bar can rest */
     obscured: () -> Boolean = { false },
+    /** ColorOS 17 Living Flow scroll morph progress: 0f = full 4-tab capsule, 1f = 56dp left floating orb */
+    collapseProgress: () -> Float = { 0f },
+    /** Tapping the collapsed floating orb expands the 4-tab dock back open */
+    onExpandDock: () -> Unit = {},
 ) {
     // a look with a nav bar of its own draws it in this one's place
     val moduleBar = com.mochyy.mochymusic.modules.skin.ActiveSkin.bar
@@ -263,15 +271,33 @@ fun AppNavigationBar(
     val glassPill = remember(pill, tabCount, density) {
         { bar: Size -> pill.forGlass(bar, with(density) { NavRowPadding.toPx() }, tabCount, density) }
     }
+    val activeScreen = navigationItems.getOrNull(selectedIndex.coerceAtLeast(0)) ?: Screens.Home
+    val orbIconPainter = coil3.compose.rememberAsyncImagePainter(model = activeScreen.iconIdActive)
+    val orbClickable by remember(collapseProgress) {
+        androidx.compose.runtime.derivedStateOf { collapseProgress() >= 0.45f }
+    }
 
-    Box(modifier = modifier) {
+    Box(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                 .padding(horizontal = 20.dp, vertical = 8.dp)
-                .align(Alignment.TopCenter)
-                .height(NavBarHeight)
+                .align(Alignment.TopStart)
+                // Morphs layout bounds smoothly between full-width 64dp dock and 56dp circular orb on the left.
+                // Using exact morphed width ensures touches to the right reach the adjacent compact Mini-Player!
+                .layout { measurable, constraints ->
+                    val c = collapseProgress().coerceIn(0f, 1f)
+                    val fullW = constraints.maxWidth
+                    val fullH = NavBarHeight.roundToPx()
+                    val orbPx = DockOrbSize.roundToPx()
+                    val targetW = (fullW + (orbPx - fullW) * c).toInt().coerceIn(orbPx, fullW.coerceAtLeast(orbPx))
+                    val targetH = (fullH + (orbPx - fullH) * c).toInt().coerceIn(orbPx, fullH.coerceAtLeast(orbPx))
+                    val placeable = measurable.measure(Constraints.fixed(targetW, targetH))
+                    val topOffset = ((fullH - targetH) / 2f).toInt()
+                    layout(targetW, fullH) {
+                        placeable.place(0, topOffset)
+                    }
+                }
                 .press3D(maxTilt = 4f, pressedScale = 0.985f)
                 .then(if (moduleGlass?.shadow == false) Modifier else Modifier.dropShadow(NavBarShape, ChromeShadow))
                 .clip(NavBarShape)
@@ -288,13 +314,23 @@ fun AppNavigationBar(
                 pill = glassPill,
             )
 
+            // Full 4-tab row: smoothly fades & contracts out as the dock morphs into the left Orb
             Row(
                 modifier = Modifier
                     .fillMaxSize()
+                    .graphicsLayer {
+                        val c = collapseProgress().coerceIn(0f, 1f)
+                        alpha = (1f - c * 2.4f).coerceIn(0f, 1f)
+                        val s = 1f - 0.14f * c
+                        scaleX = s
+                        scaleY = s
+                    }
                     .padding(horizontal = NavRowPadding)
-                    .navHighlight(pill, tabCount) { moduleGlass?.drawsPill != true }
+                    .navHighlight(pill, tabCount) { moduleGlass?.drawsPill != true && collapseProgress() < 0.35f }
                     .navPillDrag(pill, tabCount, selectedIndex) { index ->
-                        navigationItems.getOrNull(index)?.let { onItemClick(it, index == selectedIndex) }
+                        if (collapseProgress() < 0.45f) {
+                            navigationItems.getOrNull(index)?.let { onItemClick(it, index == selectedIndex) }
+                        }
                     },
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -304,11 +340,59 @@ fun AppNavigationBar(
                     NavTab(
                         screen = screen,
                         isSelected = screen.route == selectedTabRoute,
-                        onItemClick = onItemClick,
+                        onItemClick = { s, selected ->
+                            if (collapseProgress() < 0.45f) onItemClick(s, selected)
+                        },
                         onDoubleTap = onSearchDoubleTap.takeIf { screen == Screens.Search },
                         showLabel = !slimNav,
                     )
                 }
+            }
+
+            // ColorOS 17 collapsed floating Orb content: active tab icon with soft Luminous Coral glow
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val c = collapseProgress().coerceIn(0f, 1f)
+                        val vis = ((c - 0.35f) / 0.65f).coerceIn(0f, 1f)
+                        alpha = vis
+                        val s = 0.65f + 0.35f * vis
+                        scaleX = s
+                        scaleY = s
+                    }
+                    .drawBehind {
+                        val c = collapseProgress().coerceIn(0f, 1f)
+                        if (c > 0.35f) {
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        AppleMusicAccent.copy(alpha = 0.28f * c),
+                                        Color.Transparent,
+                                    ),
+                                    center = center,
+                                    radius = size.minDimension * 0.52f,
+                                )
+                            )
+                        }
+                    }
+                    .then(
+                        if (orbClickable) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onExpandDock,
+                            )
+                        } else Modifier
+                    ),
+            ) {
+                Icon(
+                    painter = orbIconPainter,
+                    contentDescription = "Mở thanh điều hướng",
+                    tint = AppleMusicAccent,
+                    modifier = Modifier.size(24.dp),
+                )
             }
         }
     }

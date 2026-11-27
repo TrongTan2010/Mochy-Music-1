@@ -976,14 +976,15 @@ class MainActivity : ComponentActivity() {
                                 forceShowSetup = false
                             }
                         ) {
-                            // iOS 26 / Apple Music scroll-to-collapse for Floating Glass Dock & Mini-Player
+                            // ColorOS 17 Living Flow scroll-to-morph: dock collapses into floating left orb + compact Mini-Player capsule
                             var dockCollapsed by remember { mutableStateOf(false) }
                             LaunchedEffect(currentRoute) { dockCollapsed = false }
-                            val dockCollapseProgress by animateFloatAsState(
+                            val dockCollapseState = animateFloatAsState(
                                 targetValue = if (dockCollapsed && playerBottomSheetState.progress <= 0.01f && wideBar == null) 1f else 0f,
-                                animationSpec = spring(dampingRatio = 0.86f, stiffness = 320f),
+                                animationSpec = spring(dampingRatio = 0.78f, stiffness = 290f),
                                 label = "dockScrollCollapse",
                             )
+                            val dockCollapseProvider = remember(dockCollapseState) { { dockCollapseState.value } }
                             val dockCollapseScrollConnection = remember {
                                 object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
                                     private var accum = 0f
@@ -994,10 +995,10 @@ class MainActivity : ComponentActivity() {
                                         val dy = available.y
                                         if (dy < 0f) {
                                             accum = if (accum > 0f) dy else accum + dy
-                                            if (accum < -42f) dockCollapsed = true
+                                            if (accum < -38f) dockCollapsed = true
                                         } else if (dy > 0f) {
                                             accum = if (accum < 0f) dy else accum + dy
-                                            if (accum > 24f) dockCollapsed = false
+                                            if (accum > 20f) dockCollapsed = false
                                         }
                                         return androidx.compose.ui.geometry.Offset.Zero
                                     }
@@ -1123,20 +1124,15 @@ class MainActivity : ComponentActivity() {
                                         }
 
                                         if (!hideAppChrome.value) {
-                                        // the bar slides away as the player opens, and tucks away smoothly when scrolling down
+                                        // the bar slides away as the player opens; on scroll it morphs in place into a ColorOS 17 floating orb
                                         val barMotion = Modifier
                                             .align(Alignment.BottomCenter)
                                             .launchRise(order = 3)
                                             .height(bottomInset + navPadding)
                                             .graphicsLayer {
                                                 val progress = playerBottomSheetState.progress.coerceIn(0f, 1f)
-                                                val collapse = dockCollapseProgress
-                                                val hideFactor = maxOf(progress, collapse)
-                                                translationY = navBarTotalHeight.toPx() * hideFactor
-                                                val s = 1f - 0.10f * collapse * (1f - progress)
-                                                scaleX = s
-                                                scaleY = s
-                                                alpha = (1f - progress / 0.6f).coerceIn(0f, 1f) * (1f - collapse)
+                                                translationY = navBarTotalHeight.toPx() * progress
+                                                alpha = (1f - progress / 0.6f).coerceIn(0f, 1f)
                                             }
                                         // the wide pill shrinks onto the tabs while nothing is playing, read while laying out
                                         val withPlayer = animateFloatAsState(
@@ -1155,7 +1151,10 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
 
-                                        CompositionLocalProvider(com.mochyy.mochymusic.ui.component.LocalMiniPillFrame provides miniPill) {
+                                        CompositionLocalProvider(
+                                            com.mochyy.mochymusic.ui.component.LocalMiniPillFrame provides miniPill,
+                                            com.mochyy.mochymusic.ui.component.LocalDockCollapseProgress provides dockCollapseProvider,
+                                        ) {
                                             BottomSheetPlayer(
                                                 state = playerBottomSheetState,
                                                 navController = navController,
@@ -1164,9 +1163,11 @@ class MainActivity : ComponentActivity() {
                                                     .launchRise(order = 3)
                                                     .graphicsLayer {
                                                         val progress = playerBottomSheetState.progress.coerceIn(0f, 1f)
-                                                        val collapse = dockCollapseProgress * (1f - progress)
+                                                        val collapse = dockCollapseProvider() * (1f - progress)
                                                         if (collapse > 0.001f) {
-                                                            translationY = navBarTotalHeight.toPx() * 0.78f * collapse
+                                                            // Aligns the 60dp Mini-Player capsule vertically with the 56dp ColorOS 17 Dock Orb
+                                                            val dropPx = (MiniPlayerHeight + MiniPlayerBottomSpacing + 10.dp).toPx()
+                                                            translationY = dropPx * collapse
                                                         }
                                                     },
                                             )
@@ -1203,6 +1204,8 @@ class MainActivity : ComponentActivity() {
                                                     navController.navigateToTab(route)
                                                 },
                                                 obscured = { playerBottomSheetState.progress > 0.001f },
+                                                collapseProgress = dockCollapseProvider,
+                                                onExpandDock = { dockCollapsed = false },
                                                 modifier = barMotion,
                                             )
                                         }

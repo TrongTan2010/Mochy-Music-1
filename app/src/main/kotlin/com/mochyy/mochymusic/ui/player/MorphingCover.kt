@@ -225,6 +225,8 @@ private class MorphEndpointsPx(
     val dpPx: Float,
     /** how far the controls under the cover were moved, px down; read while laying out */
     val coverOffset: () -> Float,
+    /** ColorOS 17 collapsed dock orb horizontal clearance (px) added to mini player left edge */
+    val dockShiftPx: () -> Float = { 0f },
 ) {
     /** the full-size cover's box (x, y, width, height), its region moved with the controls under it */
     fun fullArt(): FloatArray {
@@ -293,11 +295,12 @@ private fun MorphEndpointsPx.artRect(p: Float, hOffset: Float, lp: Float): Float
     val travel = coverTravel(p, growLate)
     val artW = lerpF(miniArtWidthPx, fullW, grow)
     val artH = lerpF(miniArtHeightPx, fullH, grow)
+    val miniX = miniArtXPx + dockShiftPx()
     // the middle travels and the size grows round it; with both on p that's the same straight line edge-to-edge always had
-    val artX = lerpF(miniArtXPx + miniArtWidthPx / 2f, fullX + fullW / 2f, travel) - artW / 2f + hOffset
+    val artX = lerpF(miniX + miniArtWidthPx / 2f, fullX + fullW / 2f, travel) - artW / 2f + hOffset
     val artY = lerpF(miniArtYPx + miniArtHeightPx / 2f, fullY + fullH / 2f, travel) - artH / 2f
     if (lp <= 0f) return floatArrayOf(artX, artY, artW, artH)
-    val lyricsX = lerpF(miniArtXPx, lyricsArtXPx, p) + hOffset
+    val lyricsX = lerpF(miniX, lyricsArtXPx, p) + hOffset
     val lyricsY = lerpF(miniArtYPx, lyricsArtYPx, p)
     val lyricsW = lerpF(miniArtWidthPx, lyricsArtSizePx, p)
     val lyricsH = lerpF(miniArtHeightPx, lyricsArtSizePx, p)
@@ -363,10 +366,10 @@ private fun Modifier.morphLayout(
             floatArrayOf(previousX, previousY, -1f, -1f)
         }
         MorphElement.TEXT -> {
-
-            val textX = lerpF(endpointsPx.miniTextXPx, endpointsPx.fullTextXPx, p) + hOffset
+            val shift = endpointsPx.dockShiftPx()
+            val textX = lerpF(endpointsPx.miniTextXPx + shift, endpointsPx.fullTextXPx, p) + hOffset
             val textY = lerpF(0f, endpointsPx.fullTextYPx + endpointsPx.coverOffset(), p)
-            val textW = lerpF(endpointsPx.miniTextWidthPx, endpointsPx.fullTextWidthPx, p)
+            val textW = lerpF((endpointsPx.miniTextWidthPx - shift).coerceAtLeast(48f), endpointsPx.fullTextWidthPx, p)
             floatArrayOf(textX, textY, textW, endpointsPx.miniHeightPx)
         }
         MorphElement.BACKDROP -> {
@@ -564,7 +567,9 @@ fun MorphingCover(
     }
 
     val currentCoverOffset by androidx.compose.runtime.rememberUpdatedState(coverOffsetProvider)
-    val endpointsPx = remember(endpoints, density) {
+    val dockCollapse = com.mochyy.mochymusic.ui.component.LocalDockCollapseProgress.current
+    val dockOrbClearancePx = with(density) { com.mochyy.mochymusic.ui.component.DockOrbClearance.toPx() }
+    val endpointsPx = remember(endpoints, density, pillFrame, dockCollapse, dockOrbClearancePx) {
         with(density) {
             MorphEndpointsPx(
                 miniArtWidthPx = endpoints.miniArtWidth.toPx(),
@@ -598,6 +603,7 @@ fun MorphingCover(
                 statusTopPx = statusBarTop.toPx(),
                 dpPx = density.density,
                 coverOffset = { currentCoverOffset() },
+                dockShiftPx = { if (pillFrame.merged) 0f else dockOrbClearancePx * dockCollapse().coerceIn(0f, 1f) },
             )
         }
     }
@@ -1462,6 +1468,7 @@ private fun MiniPlayerProgressLine(
         (progressState.position.toFloat() / progressState.duration.toFloat()).coerceIn(0f, 1f)
     } else 0f
 
+    val dockCollapse = com.mochyy.mochymusic.ui.component.LocalDockCollapseProgress.current
     androidx.compose.foundation.Canvas(
         modifier = Modifier
             .fillMaxWidth()
@@ -1470,8 +1477,12 @@ private fun MiniPlayerProgressLine(
                 alpha = (1f - progressProvider() / 0.25f).coerceIn(0f, 1f)
             }
     ) {
-        val horizontalInset = (pillFrame.start + 22.dp).toPx()
-        val barWidth = (size.width - horizontalInset * 2f).coerceAtLeast(0f)
+        val extraStart = if (pillFrame.merged) 0f else {
+            com.mochyy.mochymusic.ui.component.DockOrbClearance.toPx() * dockCollapse().coerceIn(0f, 1f)
+        }
+        val leftInset = (pillFrame.start + 22.dp).toPx() + extraStart
+        val rightInset = (pillFrame.end + 22.dp).toPx()
+        val barWidth = (size.width - leftInset - rightInset).coerceAtLeast(0f)
         if (barWidth <= 0f) return@Canvas
         val barHeight = 2.dp.toPx()
         val barTop = size.height - barHeight - 2.5.dp.toPx()
@@ -1479,14 +1490,14 @@ private fun MiniPlayerProgressLine(
 
         drawRoundRect(
             color = Color.White.copy(alpha = 0.14f),
-            topLeft = Offset(horizontalInset, barTop),
+            topLeft = Offset(leftInset, barTop),
             size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
             cornerRadius = cr,
         )
         if (fraction > 0.001f) {
             drawRoundRect(
                 color = com.mochyy.mochymusic.ui.component.AppleMusicAccent,
-                topLeft = Offset(horizontalInset, barTop),
+                topLeft = Offset(leftInset, barTop),
                 size = androidx.compose.ui.geometry.Size(barWidth * fraction, barHeight),
                 cornerRadius = cr,
             )
@@ -1914,7 +1925,7 @@ private fun Modifier.sheetShapeLayout(
     endPx: Float,
 ) = this.layout { measurable, constraints ->
     val p = progressProvider()
-    val left = kotlin.math.floor(startPx * (1f - p)).toInt()
+    val left = kotlin.math.floor((startPx + endpointsPx.dockShiftPx()) * (1f - p)).toInt()
     val right = kotlin.math.ceil(endpointsPx.fullWidthPx - endPx * (1f - p)).toInt()
     val height = kotlin.math.ceil(lerpF(endpointsPx.miniHeightPx, endpointsPx.fullHeightPx, p)).toInt()
     val placeable = measurable.measure(
