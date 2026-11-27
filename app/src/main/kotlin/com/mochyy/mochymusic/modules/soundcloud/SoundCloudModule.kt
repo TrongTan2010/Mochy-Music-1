@@ -242,6 +242,40 @@ class SoundCloudModule : SourceModule {
         return searchCatalog("trending remix hits", limit = limit)
     }
 
+    /** Fetches top SoundCloud charts for a specific genre slug (e.g. "hiphoprap", "danceedm"), falling back to catalog search. */
+    suspend fun fetchGenreTracks(
+        genreSlug: String?,
+        fallbackQuery: String,
+        limit: Int = 14,
+    ): List<SoundCloudTrackItem> {
+        if (!genreSlug.isNullOrBlank()) {
+            var clientId = obtainClientId(forceRefresh = false)
+            if (clientId != null) {
+                val url = "$ApiBase/charts?kind=top&genre=soundcloud%3Agenres%3A${enc(genreSlug)}&high_tier_only=false&limit=$limit&client_id=${enc(clientId)}"
+                var resp = runCatching {
+                    host.http(HttpRequest(url, headers = apiHeaders(includeAuth = true)))
+                }.getOrNull()
+                if (resp != null && (resp.code == 401 || resp.code == 403)) {
+                    clientId = obtainClientId(forceRefresh = true)
+                    if (clientId != null) {
+                        val retryUrl = "$ApiBase/charts?kind=top&genre=soundcloud%3Agenres%3A${enc(genreSlug)}&high_tier_only=false&limit=$limit&client_id=${enc(clientId)}"
+                        resp = runCatching {
+                            host.http(HttpRequest(retryUrl, headers = apiHeaders(includeAuth = false)))
+                        }.getOrNull()
+                    }
+                }
+                if (resp != null && resp.ok) {
+                    val tracks = parseNestedTracks(resp.text)
+                    if (tracks.isNotEmpty()) {
+                        tracks.forEach { rememberDirectTrack(it) }
+                        return tracks.map { it.toPublicItem() }
+                    }
+                }
+            }
+        }
+        return searchCatalog(fallbackQuery, limit = limit)
+    }
+
     suspend fun fetchLikedTracks(limit: Int = 40): List<SoundCloudTrackItem> {
         if (!isUserSignedIn()) return emptyList()
         val clientId = obtainClientId(forceRefresh = false) ?: obtainClientId(forceRefresh = true) ?: return emptyList()
