@@ -259,7 +259,8 @@ fun rememberChromeAccentWash(): () -> Color {
  * full resolution: there the detail still shows.
  */
 internal fun glassDownscale(effectiveRadius: Float, low: Boolean = false): Int = when {
-    effectiveRadius >= 64f -> 4
+    // 48f+ Gaussian blur looks identical at 1/4 resolution while cutting GPU fill-rate by 75% during scroll
+    effectiveRadius >= 48f -> 4
     // low quality drops a step sooner: a little softer, a quarter of the pixels to draw and blur
     low && effectiveRadius >= 32f -> 4
     effectiveRadius >= 16f -> 2

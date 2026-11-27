@@ -342,13 +342,16 @@ class App : Application(), SingletonImageLoader.Factory {
                 add(SvgDecoder.Factory())
                 add(com.mochyy.mochymusic.utils.ImageRetry)
             }
-            // covers ease in as they arrive; coil skips the fade for ones already in memory, so scrolling back never flickers
-            crossfade(300)
+            // Snappier fade + inexact precision so Coil reuses already-decoded covers across hero, list & mini-player
+            crossfade(200)
+            precision(coil3.size.Precision.INEXACT)
             allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
 
             memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.15)
+                    .maxSizePercent(context, 0.18)
+                    .strongReferencesEnabled(true)
+                    .weakReferencesEnabled(true)
                     .build()
             }
             if (cacheSize == 0) {

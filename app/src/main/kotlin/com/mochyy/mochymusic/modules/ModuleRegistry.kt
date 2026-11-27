@@ -31,6 +31,7 @@ import com.mochyy.mochymusic.module.applemusic.AppleMusicModule
 import com.mochyy.mochymusic.module.bridge.BridgedModule
 import com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule
 import com.mochyy.mochymusic.module.monochrome.MonochromeModule
+import com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule
 import com.mochyy.mochymusic.modules.code.CodeModules
 import com.mochyy.mochymusic.modules.code.CodeSkinModule
 import com.mochyy.mochymusic.modules.local.LocalModule
@@ -179,7 +180,10 @@ class ModuleRegistry @Inject constructor(
 
     fun all(): List<MochyModule> = modules.map { it.first }
 
-    fun isEnabled(id: String): Boolean = prefs.getBoolean("enabled_$id", id == SourceModules.YouTubeId)
+    fun isEnabled(id: String): Boolean = prefs.getBoolean(
+        "enabled_$id",
+        id == SourceModules.YouTubeId || id == SoundCloudModule.Id,
+    )
 
     fun hasAcknowledgedScriptWarning(id: String): Boolean = prefs.getBoolean("script_warn_ack_$id", false)
 
@@ -632,7 +636,12 @@ class ModuleRegistry @Inject constructor(
     // ---- loading --------------------------------------------------------------------------------
 
     private fun load(): List<Pair<MochyModule, ModuleOrigin>> {
-        val builtIn = listOf<MochyModule>(AppleMusicModule(), MonochromeModule(), JioSaavnModule()).map { it to ModuleOrigin.BuiltIn }
+        val builtIn = listOf<MochyModule>(
+            AppleMusicModule(),
+            MonochromeModule(),
+            JioSaavnModule(),
+            SoundCloudModule(),
+        ).map { it to ModuleOrigin.BuiltIn }
         val apps = discover()
         val savedCode = savedCodeModules()
         CodeModules.tidy(context, savedCode.map { it.optString("folder") }.toSet())
@@ -760,7 +769,7 @@ class ModuleRegistry @Inject constructor(
     }
 
     companion object {
-        private val BuiltInIds = setOf(AppleMusicModule.Id, MonochromeModule.Id, JioSaavnModule.Id)
+        private val BuiltInIds = setOf(AppleMusicModule.Id, MonochromeModule.Id, JioSaavnModule.Id, SoundCloudModule.Id)
         private const val Tag = "ModuleRegistry"
         private const val WebModulesKey = "web_modules"
         private const val LocalModulesKey = "local_modules"

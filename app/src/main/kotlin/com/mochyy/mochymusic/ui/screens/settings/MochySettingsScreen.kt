@@ -34,6 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -257,6 +258,7 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         CollapsedDockModeBubble()
+                        SoundCloudSourceBubble()
 
                         // in the order of the design: sound first, then how the app acts and looks, then the rest
                         CategoryBubble(
@@ -517,6 +519,126 @@ private fun CollapsedDockModeBubble() {
                 checked = showSearch,
                 onCheckedChange = setShowSearch,
             )
+        }
+    }
+}
+
+@Composable
+private fun SoundCloudSourceBubble() {
+    val modulesVm: com.mochyy.mochymusic.viewmodels.ModulesViewModel =
+        androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
+    val entries by modulesVm.entries.collectAsState()
+    val order by modulesVm.order.collectAsState()
+    val scId = com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.Id
+    val ytId = com.mochyy.mochymusic.modules.SourceModules.YouTubeId
+    val scEntry = entries.firstOrNull { it.id == scId }
+    val scEnabled = scEntry?.enabled == true
+    val scIndex = order.indexOf(scId)
+    val ytIndex = order.indexOf(ytId)
+    val scPrimary = scEnabled && scIndex >= 0 && (ytIndex < 0 || scIndex < ytIndex)
+    val soundCloudOrange = Color(0xFFFF5500)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(BubbleColor)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { modulesVm.setEnabled(scId, !scEnabled) },
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(soundCloudOrange.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.radio),
+                    contentDescription = null,
+                    tint = soundCloudOrange,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Nguồn phát thứ 2: SoundCloud",
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = when {
+                        !scEnabled -> "Đang tắt • Chỉ phát từ YouTube Music"
+                        scPrimary -> "Đang ưu tiên phát từ SoundCloud (dự phòng YouTube)"
+                        else -> "Đang bật • Dự phòng tự động sau YouTube Music"
+                    },
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.6f),
+                    maxLines = 2,
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            com.mochyy.mochymusic.ui.component.AppSwitch(
+                checked = scEnabled,
+                onCheckedChange = { modulesVm.setEnabled(scId, it) },
+            )
+        }
+        if (scEnabled) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                val pickOrder: (Boolean) -> Unit = { preferSoundCloud ->
+                    modulesVm.setVisibleOrder(if (preferSoundCloud) listOf(scId, ytId) else listOf(ytId, scId))
+                }
+                Text(
+                    text = "YouTube → SoundCloud",
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (!scPrimary) Color.White else Color.White.copy(alpha = 0.65f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(50))
+                        .background(
+                            if (!scPrimary) com.mochyy.mochymusic.ui.component.AppleMusicAccent
+                            else Color.White.copy(alpha = 0.08f)
+                        )
+                        .clickable { pickOrder(false) }
+                        .padding(vertical = 8.dp),
+                )
+                Text(
+                    text = "Ưu tiên SoundCloud",
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (scPrimary) Color.White else Color.White.copy(alpha = 0.65f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(50))
+                        .background(
+                            if (scPrimary) soundCloudOrange
+                            else Color.White.copy(alpha = 0.08f)
+                        )
+                        .clickable { pickOrder(true) }
+                        .padding(vertical = 8.dp),
+                )
+            }
         }
     }
 }

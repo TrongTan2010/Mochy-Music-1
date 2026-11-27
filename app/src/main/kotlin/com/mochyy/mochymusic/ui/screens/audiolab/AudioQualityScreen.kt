@@ -131,6 +131,17 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
             val pick = entries.firstOrNull { it.id == first }?.picks?.get(JioSaavnModule.ChoiceQuality) ?: JioSaavnModule.Option320
             Effective(if (pick == JioSaavnModule.Option96) AudioQuality.MEDIUM else AudioQuality.HIGH, "JioSaavn", "AAC $pick")
         }
+        com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.Id -> {
+            val pick = entries.firstOrNull { it.id == first }
+                ?.picks?.get(com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.ChoiceQuality)
+                ?: com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.OptionAuto
+            val label = when (pick) {
+                com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.OptionOpus -> "HLS Opus"
+                com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.OptionMp3 -> "MP3 128"
+                else -> "MP3 / Opus"
+            }
+            Effective(AudioQuality.HIGH, "SoundCloud", label)
+        }
         SourceModules.YouTubeId -> {
             val tier = if (quality == AudioQuality.AUTO) (if (metered) AudioQuality.MEDIUM else AudioQuality.HIGH) else quality
             val option = YouTubeOptions.first { it.quality == tier }

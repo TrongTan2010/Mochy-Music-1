@@ -337,6 +337,8 @@ fun PlayerActionMenu(
                 Spacer(modifier = Modifier.height(8.dp))
                 DynamicCoverBlurRow()
                 Spacer(modifier = Modifier.height(8.dp))
+                QuickPlaybackSourceRow(songId = songId, onDismiss = onDismiss)
+                Spacer(modifier = Modifier.height(8.dp))
                 // the song keeps playing and everything after it becomes songs like it; a file on the phone has no station
                 MenuRow(
                     icon = R.drawable.radio,
@@ -680,6 +682,47 @@ private fun DynamicCoverBlurRow() {
         title = "Làm mờ nền tự động theo ảnh bìa",
         onClick = { setEnabled(!enabled) },
         trailing = { AppSwitch(checked = enabled, onCheckedChange = setEnabled) },
+    )
+}
+
+/** Quick one-tap switch for the currently playing track between YouTube Music and SoundCloud. */
+@Composable
+private fun QuickPlaybackSourceRow(songId: String?, onDismiss: () -> Unit) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val service = playerConnection.service
+    val playingFrom by remember(songId) {
+        if (songId != null) {
+            service.playingFrom.let { flow ->
+                kotlinx.coroutines.flow.flow {
+                    flow.collect { map -> emit(map[songId]) }
+                }
+            }
+        } else flowOf(null)
+    }.collectAsState(initial = null)
+    val isSoundCloud = playingFrom?.providerId == com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.Id
+    val targetId = if (isSoundCloud) {
+        com.mochyy.mochymusic.modules.SourceModules.YouTubeId
+    } else {
+        com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.Id
+    }
+    MenuRow(
+        icon = R.drawable.cast,
+        title = if (isSoundCloud) "Đổi bài này sang YouTube Music" else "Phát bài này bằng SoundCloud",
+        enabled = songId != null && !songId.startsWith("LOCAL_"),
+        onClick = {
+            service.sourceModules.setEnabled(targetId, true)
+            service.providerSwitch.force(targetId)
+            onDismiss()
+        },
+        trailing = {
+            val badgeColor = if (isSoundCloud) Color(0xFFFF5500) else com.mochyy.mochymusic.ui.component.AppleMusicAccent
+            Text(
+                text = if (isSoundCloud) "SoundCloud" else "YouTube",
+                color = badgeColor,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        },
     )
 }
 

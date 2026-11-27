@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material3.Icon
@@ -40,6 +41,17 @@ internal fun ProviderLogo(providerId: String, name: String, size: Dp) {
             contentScale = ContentScale.Crop,
             modifier = Modifier.size(size).clip(SquircleShape),
         )
+        com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.Id -> Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(size).clip(SquircleShape).background(Color(0xFFFF5500)),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Cloud,
+                contentDescription = name,
+                tint = Color.White,
+                modifier = Modifier.size(size * 0.54f),
+            )
+        }
         PlayingFrom.Device, PlayingFrom.Downloads -> Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(size).clip(SquircleShape).background(Color.White.copy(alpha = 0.9f)),

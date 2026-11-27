@@ -1611,9 +1611,10 @@ class MusicService :
         val instantSkip = dataStore.get(SkipSilenceInstantKey, false)
         silenceProcessor.instantModeEnabled = skipSilence && instantSkip
 
-        // 15-25 s instead of media3's 50 s, and time wins over the 6 mb cap so a 24/192 dac stream still keeps its full 15 s instead of stopping at ~8
+        // Tuned buffer for snappy startup (~850ms) and instant 10s backward seek without rebuffering
         val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
-            .setBufferDurationsMs(15_000, 25_000, 1_500, 3_000)
+            .setBufferDurationsMs(15_000, 25_000, 850, 1_800)
+            .setBackBuffer(10_000, true)
             .setTargetBufferBytes(6 * 1024 * 1024)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
@@ -4472,7 +4473,7 @@ class MusicService :
     private fun forceFallBack(mediaId: String, includeYouTube: Boolean = false, announce: Boolean = true): Boolean {
         val failed = resolvedSourceIds[mediaId] ?: return false
         if (failed == com.mochyy.mochymusic.modules.SourceModules.YouTubeId &&
-            (!includeYouTube || !dataStore.get(ForcePlaybackKey, false))
+            (!includeYouTube || !dataStore.get(ForcePlaybackKey, true))
         ) {
             return false
         }

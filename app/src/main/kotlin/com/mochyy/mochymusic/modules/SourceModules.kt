@@ -13,6 +13,7 @@ import com.mochyy.mochymusic.module.StreamFormat
 import com.mochyy.mochymusic.module.TrackQuery
 import com.mochyy.mochymusic.module.applemusic.AppleMusicModule
 import com.mochyy.mochymusic.module.monochrome.MonochromeModule
+import com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule
 import com.mochyy.mochymusic.modules.security.ModuleUrlGuard
 import com.mochyy.mochymusic.utils.DataSaver
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -253,14 +254,14 @@ class SourceModules @Inject constructor(
 
     companion object {
         private const val Tag = "SourceModules"
-        // how long a module may take to find a song before the next provider in the order plays it
-        private const val ModuleTimeoutMs = 12_000L
+        // Faster provider timeout (7.5s) so an unreachable source never stalls playback
+        private const val ModuleTimeoutMs = 7_500L
         // the choice every module names its stream quality with, and the option data saver steps down to
         const val QualityChoice = "quality"
         private const val SaverOption = "high"
         /** youtube music in the provider order: not a module, and needs no account */
         const val YouTubeId = "youtube"
-        // modules added later (jiosaavn, link modules) aren't listed: refresh slots them in just ahead of youtube, where they get asked
-        private val KnownOrder = listOf(MonochromeModule.Id, AppleMusicModule.Id, YouTubeId)
+        // YouTube Music is #1 by default and SoundCloud is built-in #2 fallback/secondary source
+        private val KnownOrder = listOf(MonochromeModule.Id, AppleMusicModule.Id, YouTubeId, SoundCloudModule.Id)
     }
 }
