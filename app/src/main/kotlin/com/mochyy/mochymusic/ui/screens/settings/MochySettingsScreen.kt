@@ -258,9 +258,6 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         CollapsedDockModeBubble()
-                        PlayerStylePickerBubble(
-                            onOpenCustomizer = { navController.navigate(UiCustomizerRoute) },
-                        )
                         SoundCloudSourceBubble(
                             onOpenSoundCloud = {
                                 navController.navigate(com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudRoute)
@@ -525,129 +522,6 @@ private fun CollapsedDockModeBubble() {
             com.mochyy.mochymusic.ui.component.AppSwitch(
                 checked = showSearch,
                 onCheckedChange = setShowSearch,
-            )
-        }
-    }
-}
-
-@Composable
-private fun PlayerStylePickerBubble(
-    onOpenCustomizer: () -> Unit,
-) {
-    val (currentStyle, setStyle) = com.mochyy.mochymusic.utils.rememberEnumPreference(
-        com.mochyy.mochymusic.constants.PlayerStyleKey,
-        defaultValue = com.mochyy.mochymusic.constants.PlayerStyle.FLAGSHIP,
-    )
-    val choices = remember {
-        listOf(
-            com.mochyy.mochymusic.constants.PlayerStyle.APPLE_MUSIC to "Apple Music",
-            com.mochyy.mochymusic.constants.PlayerStyle.LIQUID_GLASS to "Liquid Glass",
-            com.mochyy.mochymusic.constants.PlayerStyle.VINYL_CD to "Vinyl CD",
-            com.mochyy.mochymusic.constants.PlayerStyle.MINIMAL_DARK to "Minimal Dark",
-            com.mochyy.mochymusic.constants.PlayerStyle.FLAGSHIP to "Flagship",
-            com.mochyy.mochymusic.constants.PlayerStyle.TURNTABLE to "Turntable",
-            com.mochyy.mochymusic.constants.PlayerStyle.POSTER to "Poster",
-            com.mochyy.mochymusic.constants.PlayerStyle.TIMELINE to "Timeline",
-            com.mochyy.mochymusic.constants.PlayerStyle.LYRICS to "Lyrics",
-            com.mochyy.mochymusic.constants.PlayerStyle.IPOD to "iPod",
-        )
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(BubbleColor)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(com.mochyy.mochymusic.ui.component.AppleMusicAccent.copy(alpha = 0.22f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.play_applemusic),
-                    contentDescription = null,
-                    tint = com.mochyy.mochymusic.ui.component.AppleMusicAccent,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Kiểu trình phát (Player Style)",
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Đang dùng: ${currentStyle.displayName} • Hoặc nhấn giữ nền Player để đổi",
-                    fontFamily = InterFontFamily,
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.6f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        androidx.compose.foundation.lazy.LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            items(choices.size) { index ->
-                val (style, label) = choices[index]
-                val selected = currentStyle == style
-                Text(
-                    text = label,
-                    fontFamily = InterFontFamily,
-                    fontSize = 12.5.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) Color.White else Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(
-                            if (selected) com.mochyy.mochymusic.ui.component.AppleMusicAccent
-                            else Color.White.copy(alpha = 0.08f)
-                        )
-                        .clickable { setStyle(style) }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(10.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(com.mochyy.mochymusic.ui.component.AppleMusicAccent.copy(alpha = 0.20f))
-                .clickable(onClick = onOpenCustomizer)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.palette),
-                contentDescription = null,
-                tint = com.mochyy.mochymusic.ui.component.AppleMusicAccent,
-                modifier = Modifier.size(16.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Tùy biến giao diện tự do & Thay ảnh nền",
-                fontFamily = InterFontFamily,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White,
             )
         }
     }

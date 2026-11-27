@@ -50,6 +50,7 @@ val SettingsPaneRoutes = setOf(
     PlaybackSettingsRoute,
     NowPlayingSettingsRoute,
     "customisation_settings",
+    UiCustomizerRoute,
     "gesture_settings",
     StorageRoute,
     IntegrationsRoute,

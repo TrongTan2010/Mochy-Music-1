@@ -78,6 +78,7 @@ import com.mochyy.mochymusic.ui.component.SheetIcon
 import com.mochyy.mochymusic.ui.component.SheetOptionRow
 import com.mochyy.mochymusic.ui.component.SongSwipeAction
 import com.mochyy.mochymusic.ui.component.bleedHorizontally
+import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.screens.audiolab.LabBackButton
 import com.mochyy.mochymusic.ui.screens.audiolab.LabCard
 import com.mochyy.mochymusic.ui.screens.audiolab.LabColors
@@ -129,6 +130,7 @@ fun GestureScreen(navController: NavController) = CustomisationScreen(navControl
 private enum class CustomiseSection(@StringRes val titleRes: Int, val keys: List<String>, val words: String) {
     ICONS(R.string.customise_icons, listOf("Icons", "App icon"), "icon icons app launcher home screen mochy outline anime material you white black dark transparent"),
     FONT(R.string.customise_font, listOf(FontHighlightKey), "font typeface ttf otf import system heading subheading global bold italic light customizer 폰트 글꼴"),
+    FREE_CUSTOMIZE(R.string.settings_customisation_category, listOf("Free customizer", "Tùy biến tự do"), "tuy bien tu do anh nen wallpaper accent color glass dock lyrics glow customizer free theme background"),
     ROUNDING(R.string.customise_cover_rounding, listOf("Cover rounding"), "cover rounding corner radius square rounded art"),
     PLAYLIST(R.string.customise_playlist_styles, listOf("Playlist styles"), "playlist styles flow classic minimal header"),
     PLAYER(R.string.customise_player_styles, listOf("Player styles"), "player styles flagship turntable ipod poster timeline lyrics editor customize"),
@@ -241,7 +243,12 @@ fun CustomisationScreen(navController: NavController) {
                             left.forEachIndexed { index, section ->
                                 if (index > 0) SectionRule()
                                 Box(Modifier.highlightTarget(section.keys)) {
-                                    CustomiseSectionContent(section, fontSectionState, bleedPager = false)
+                                    CustomiseSectionContent(
+                                        section = section,
+                                        fontSectionState = fontSectionState,
+                                        onOpenFreeCustomizer = { navController.navigate(com.mochyy.mochymusic.ui.screens.settings.UiCustomizerRoute) },
+                                        bleedPager = false,
+                                    )
                                 }
                             }
                         }
@@ -249,7 +256,12 @@ fun CustomisationScreen(navController: NavController) {
                             right.forEachIndexed { index, section ->
                                 if (index > 0) SectionRule()
                                 Box(Modifier.highlightTarget(section.keys)) {
-                                    CustomiseSectionContent(section, fontSectionState, bleedPager = false)
+                                    CustomiseSectionContent(
+                                        section = section,
+                                        fontSectionState = fontSectionState,
+                                        onOpenFreeCustomizer = { navController.navigate(com.mochyy.mochymusic.ui.screens.settings.UiCustomizerRoute) },
+                                        bleedPager = false,
+                                    )
                                 }
                             }
                         }
@@ -258,7 +270,12 @@ fun CustomisationScreen(navController: NavController) {
                     shown.forEachIndexed { index, section ->
                         if (index > 0) SectionRule()
                         Box(Modifier.highlightTarget(section.keys)) {
-                            CustomiseSectionContent(section, fontSectionState, bleedPager = !landscape)
+                            CustomiseSectionContent(
+                                section = section,
+                                fontSectionState = fontSectionState,
+                                onOpenFreeCustomizer = { navController.navigate(com.mochyy.mochymusic.ui.screens.settings.UiCustomizerRoute) },
+                                bleedPager = !landscape,
+                            )
                         }
                     }
                 }
@@ -268,11 +285,17 @@ fun CustomisationScreen(navController: NavController) {
 }
 
 @Composable
-private fun CustomiseSectionContent(section: CustomiseSection, fontSectionState: FontSectionState, bleedPager: Boolean = true) {
+private fun CustomiseSectionContent(
+    section: CustomiseSection,
+    fontSectionState: FontSectionState,
+    onOpenFreeCustomizer: () -> Unit,
+    bleedPager: Boolean = true,
+) {
     val pagerBleed = if (bleedPager) Modifier.bleedHorizontally(CustomisePageMargin) else Modifier
     when (section) {
         CustomiseSection.ICONS -> IconsSection()
         CustomiseSection.FONT -> FontSection(fontSectionState)
+        CustomiseSection.FREE_CUSTOMIZE -> FreeCustomizerSection(onOpen = onOpenFreeCustomizer)
         CustomiseSection.ROUNDING -> {
             val (coverRadiusPx, onCoverRadiusChange) = rememberPreference(ThumbnailCornerRadiusKey, defaultValue = DefaultCoverRadius)
             CoverRoundingSection(
@@ -315,6 +338,90 @@ private fun CustomiseSectionContent(section: CustomiseSection, fontSectionState:
         CustomiseSection.TOP_BAR -> TopBarSection()
         CustomiseSection.BOTTOM_BAR -> BottomBarSection()
         CustomiseSection.GESTURE -> GestureSection()
+    }
+}
+
+@Composable
+private fun FreeCustomizerSection(onOpen: () -> Unit) {
+    val (bgPath) = rememberPreference(com.mochyy.mochymusic.constants.CustomBgPathKey, "")
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val summary = if (bgPath.isNotBlank()) {
+        "Đang dùng ảnh nền riêng • Chạm để chỉnh tiếp"
+    } else {
+        "Ảnh nền, màu nhấn, độ bo góc & kính mờ"
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .pressBounce(interaction, pressedScale = 0.98f)
+            .clip(CardShape)
+            .background(LabColors.Card)
+            .clickable(
+                interactionSource = interaction,
+                indication = com.mochyy.mochymusic.ui.component.RemoteFocus,
+                role = androidx.compose.ui.semantics.Role.Button,
+                onClick = onOpen,
+            )
+            .padding(horizontal = CardTextInset, vertical = 20.dp),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(LabColors.Row),
+        ) {
+            if (bgPath.isNotBlank()) {
+                coil3.compose.AsyncImage(
+                    model = java.io.File(bgPath),
+                    contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.palette),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Tùy biến tự do",
+                style = CardLabelStyle.copy(fontSize = 16.sp, lineHeight = 20.sp),
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(5.dp))
+            Text(
+                text = summary,
+                style = CaptionStyle.copy(fontSize = 12.sp),
+                color = Color.White.copy(alpha = 0.55f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.08f)),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 

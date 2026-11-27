@@ -136,6 +136,7 @@ internal val LocalizedSettingsPages = mapOf(
 internal val SettingsIndex = listOf(
     // Customisation
     SettingsEntry(FontHighlightKey, "Customisation", "customisation_settings", "font typeface ttf otf import system heading subheading global bold italic light customizer 폰트 글꼴", R.string.customise_font),
+    SettingsEntry("Tùy biến tự do", "Customisation", UiCustomizerRoute, "tuy bien tu do anh nen wallpaper accent color glass dock lyrics glow customizer"),
     SettingsEntry("Customisation", "Customisation", "customisation_settings", "customize cover rounding playlist player home styles gesture swipe blur animation lyrics"),
     SettingsEntry("Cover rounding", "Customisation", "customisation_settings", "square rounded corner radius px thumbnail art"),
     SettingsEntry("Playlist styles", "Customisation", "customisation_settings", "flow classic minimal header layout"),
