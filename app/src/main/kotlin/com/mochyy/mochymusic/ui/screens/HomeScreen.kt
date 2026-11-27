@@ -1958,36 +1958,35 @@ fun HomeScreen(
     }
 }
 
+private val HomeScOrange = Color(0xFFFF5500)
+private val HomeScOrangeSoft = Color(0xFFFF7A33)
+private val HomeScBannerShape = RoundedCornerShape(20.dp)
+private val HomeScIconShape = RoundedCornerShape(12.dp)
+private val HomeScBannerBrush = Brush.horizontalGradient(
+    listOf(HomeScOrange.copy(alpha = 0.24f), Color(0xFF1A1614))
+)
+private val HomeScIconBrush = Brush.linearGradient(listOf(HomeScOrange, HomeScOrangeSoft))
+
 @Composable
 private fun HomeSoundCloudBanner(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scOrange = Color(0xFFFF5500)
-    val scOrangeSoft = Color(0xFFFF7A33)
-    val shape = RoundedCornerShape(20.dp)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(
-                Brush.horizontalGradient(
-                    listOf(
-                        scOrange.copy(alpha = 0.24f),
-                        Color(0xFF1A1614),
-                    )
-                )
-            )
-            .border(0.8.dp, scOrange.copy(alpha = 0.36f), shape)
+            .clip(HomeScBannerShape)
+            .background(HomeScBannerBrush)
+            .border(0.8.dp, HomeScOrange.copy(alpha = 0.36f), HomeScBannerShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 13.dp),
     ) {
         Box(
             modifier = Modifier
                 .size(42.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Brush.linearGradient(listOf(scOrange, scOrangeSoft))),
+                .clip(HomeScIconShape)
+                .background(HomeScIconBrush),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -2022,7 +2021,7 @@ private fun HomeSoundCloudBanner(
         Icon(
             painter = painterResource(R.drawable.navigate_next),
             contentDescription = null,
-            tint = scOrangeSoft,
+            tint = HomeScOrangeSoft,
             modifier = Modifier.size(20.dp),
         )
     }

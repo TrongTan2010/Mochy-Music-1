@@ -11,8 +11,8 @@ import timber.log.Timber
 
 // with the intro the app already draws the same mark in the same spot under the splash, so this
 // fade only hides any sub-pixel difference between the two; without it, it's the whole exit
-private const val HandOffFadeMillis = 90L
-private const val PlainFadeMillis = 200L
+private const val HandOffFadeMillis = 45L
+private const val PlainFadeMillis = 100L
 
 private val FadeEasing = PathInterpolator(0.4f, 0f, 1f, 1f)
 

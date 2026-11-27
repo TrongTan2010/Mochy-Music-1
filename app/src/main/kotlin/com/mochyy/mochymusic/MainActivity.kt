@@ -451,9 +451,10 @@ class MainActivity : ComponentActivity() {
 
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        // upright unless landscape is unlocked in Experimental; set before the first frame, so it never opens sideways and then turns
+        // upright unless landscape is unlocked in Experimental; read non-blocking cache so cold start never stalls
         if (!isTelevision()) {
-            com.mochyy.mochymusic.ui.utils.WindowTurning.setUnlocked(this, dataStore[com.mochyy.mochymusic.constants.LandscapeUnlockedKey] == true)
+            val cachedLandscape = com.mochyy.mochymusic.utils.PreferencesCache.snapshot.value[com.mochyy.mochymusic.constants.LandscapeUnlockedKey] == true
+            com.mochyy.mochymusic.ui.utils.WindowTurning.setUnlocked(this, cachedLandscape)
         }
         systemScaleObserver = com.mochyy.mochymusic.ui.utils.AppMotion.followSystemScale(this)
         moveOffOldLyricsShaderSwitch()
@@ -586,15 +587,13 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // the launch intro waits for this, so the whole app doesn't recompose for a new colour
-        // scheme halfway through it
-        var themeSettled by remember { mutableStateOf(false) }
+        // Don't stall cold start waiting for album art decode; update dynamic theme color asynchronously
+        var themeSettled by remember { mutableStateOf(true) }
 
         LaunchedEffect(playerConnection, enableDynamicTheme, selectedThemeColor) {
             val playerConnection = playerConnection
             if (!enableDynamicTheme || playerConnection == null) {
                 themeColor = selectedThemeColor
-                if (!enableDynamicTheme) themeSettled = true
                 return@LaunchedEffect
             }
 
@@ -607,7 +606,7 @@ class MainActivity : ComponentActivity() {
                                 val result = imageLoader.execute(
                                     ImageRequest.Builder(this@MainActivity)
                                         .data(song.thumbnailUrl)
-                                        .size(112, 112)
+                                        .size(64, 64)
                                         .allowHardware(false)
                                         .memoryCachePolicy(CachePolicy.DISABLED)
                                         .diskCachePolicy(CachePolicy.ENABLED)
@@ -1456,7 +1455,7 @@ class MainActivity : ComponentActivity() {
 
                     LaunchIntroOverlay(
                         state = launchIntro,
-                        essentialsReady = playerConnection != null && themeSettled,
+                        essentialsReady = true,
                     )
 
                 }
@@ -1583,10 +1582,10 @@ class MainActivity : ComponentActivity() {
 
     private data class LookSettings(val animations: Boolean, val speed: Float, val elementBlur: Boolean, val coverRadius: Float)
 
-    // people who had the old lyrics shader switch off land on the matching shaderless lyric style, once
+    // people who had the old lyrics shader switch off land on the matching shaderless lyric style, once (off main thread)
     private fun moveOffOldLyricsShaderSwitch() {
-        if (dataStore[com.mochyy.mochymusic.constants.LyricsWaveAnimationKey] != false) return
         lifecycleScope.launch(Dispatchers.IO) {
+            if (dataStore[com.mochyy.mochymusic.constants.LyricsWaveAnimationKey] != false) return@launch
             dataStore.edit { prefs ->
                 if (prefs[com.mochyy.mochymusic.constants.LyricsWaveAnimationKey] != false) return@edit
                 val stored = prefs[com.mochyy.mochymusic.constants.LyricsMotionStyleKey]

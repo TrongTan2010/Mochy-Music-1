@@ -530,8 +530,8 @@ fun MorphingCover(
         val miniHeight = pillFrame.height
         val miniArtWidth = animatedMiniArtWidth
         val miniArtHeight = 44.dp * miniScale
-        // 10dp in from the Apple Music floating capsule's edge
-        val miniArtX = pillFrame.start + 10.dp
+        // 8dp concentric inset around the 44dp circular-rounded cover inside the 60dp pill (radius 30dp = 22dp + 8dp)
+        val miniArtX = pillFrame.start + 8.dp
         val miniArtY = (miniHeight - miniArtHeight) / 2
 
         val miniPlaySize = 36.dp * miniScale
@@ -915,8 +915,8 @@ fun MorphingCover(
                         } else {
                             0.dp
                         }
-                        // Apple Music mini player thumbnail keeps a 11dp rounded corner while collapsed
-                        val miniThumbRadius = maxOf(ThumbnailCornerRadius, 11.dp)
+                        // Super-round circular thumbnail concentric with the full-pill Mini-Player capsule (22dp radius + 8dp inset = 30dp)
+                        val miniThumbRadius = maxOf(ThumbnailCornerRadius, 22.dp)
                         val base = lerp(miniThumbRadius, expandedRadius, coverGrowth(p, endpointsPx.growLate))
                         artShape.radius = lerp(base, LyricsHeaderCornerRadius, lyricsProgressProvider())
                         shape = artShape
@@ -1503,8 +1503,8 @@ private fun MiniPlayerProgressLine(
         val extraEnd = if (pillFrame.merged || !showCollapsedSearch) 0f else {
             com.mochyy.mochymusic.ui.component.DockOrbClearance.toPx() * c
         }
-        val leftInset = (pillFrame.start + 22.dp).toPx() + extraStart
-        val rightInset = (pillFrame.end + 22.dp).toPx() + extraEnd
+        val leftInset = (pillFrame.start + 28.dp).toPx() + extraStart
+        val rightInset = (pillFrame.end + 28.dp).toPx() + extraEnd
         val barWidth = (size.width - leftInset - rightInset).coerceAtLeast(0f)
         if (barWidth <= 0f) return@Canvas
         val barHeight = 2.dp.toPx()

@@ -133,9 +133,9 @@ private const val PillPressMaxProgress = 0.02f
 /** The progress the mini player's hairline outline and shadow are gone by. */
 private const val PillEdgeFadeEnd = 0.08f
 
-/** The collapsed sheet, the Apple Music floating mini player capsule: smooth 26dp capsule corners. */
-private val PillCornerRadius = 26.dp
-private val PillShape = RoundedCornerShape(PillCornerRadius)
+/** The collapsed sheet, the Apple Music floating mini player capsule: full semicircular pill ends. */
+private val PillCornerRadius = 32.dp
+private val PillShape = RoundedCornerShape(50)
 
 private val PillTiltSpring = spring<Float>(
     dampingRatio = Spring.DampingRatioNoBouncy,
@@ -333,8 +333,8 @@ fun BottomSheet(
             // a look's glass that draws its own edge leaves mochy's hairline and shadow off the mini player
             val moduleGlass = rememberChromeModuleGlass()
             val currentPillFrame by androidx.compose.runtime.rememberUpdatedState(pillFrame)
-            // in the wide bar the pill is a stadium like the bar round it, so it lifts out of it cleanly
-            val pillCorner = if (pillFrame.merged) pillFrame.height / 2 else PillCornerRadius
+            // Full semicircular capsule ends matching the Floating Glass Dock
+            val pillCorner = pillFrame.height / 2
 
             val sheetClipShape = remember {
                 object : androidx.compose.ui.graphics.Shape {

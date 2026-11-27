@@ -65,13 +65,13 @@ class MiniPillFrame(
     val height: Dp = NavBarHeight,
 )
 
-// the phone's Apple Music iOS 18 floating mini player capsule: 20dp margin matching the dock, 60dp height
-val PhoneMiniPill = MiniPillFrame(start = 20.dp, end = 20.dp, merged = false, withPrevious = false, height = 60.dp)
+// the phone's Apple Music floating full-pill mini player capsule: 22dp margin matching the dock, 60dp height
+val PhoneMiniPill = MiniPillFrame(start = 22.dp, end = 22.dp, merged = false, withPrevious = false, height = 60.dp)
 
 val LocalMiniPillFrame = staticCompositionLocalOf { PhoneMiniPill }
 
 /** ColorOS 17 / Apple Music iOS 26 collapsed dock orb diameter & gap before the adjacent Mini-Player capsule. */
-val DockOrbSize = 54.dp
+val DockOrbSize = 58.dp
 val DockOrbGap = 8.dp
 val DockOrbClearance = DockOrbSize + DockOrbGap
 

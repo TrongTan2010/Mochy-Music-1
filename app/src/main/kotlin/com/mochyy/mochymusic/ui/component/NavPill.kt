@@ -34,8 +34,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-// the pill sits this far in from the bar's top, bottom and both ends (5dp for icon + label Apple Music tabs)
-private val NavHighlightInset = 5.dp
+// the pill sits this far in from the bar's top, bottom and both ends (6dp concentric inset inside the 64dp full-pill dock)
+private val NavHighlightInset = 6.dp
 
 // room between a pill and where its neighbour's would be
 private val NavHighlightGap = 4.dp

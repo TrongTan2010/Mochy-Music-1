@@ -125,34 +125,31 @@ object LaunchGate {
     }
 }
 
-// the flight: still -> a gentle start -> a long settle into the logo. scale leads the move a
-// little, so the big mark has shrunk before it crosses the screen
-private const val FlightMillis = 660
+// Snappy cold-start launch intro timings so the app opens rapidly without multi-second stalls
+private const val FlightMillis = 260
 private val MoveEasing = CubicBezierEasing(0.55f, 0f, 0.1f, 1f)
 private val ScaleEasing = CubicBezierEasing(0.45f, 0f, 0.1f, 1f)
 
 // the skeleton: each piece rises a little after the one above it
-private const val RiseDelayMillis = 80
-private const val RiseMillis = 520
-private const val RiseStaggerMillis = 50
+private const val RiseDelayMillis = 20
+private const val RiseMillis = 220
+private const val RiseStaggerMillis = 25
 private const val RiseOrders = 4
 private const val RiseTotalMillis = RiseMillis + (RiseOrders - 1) * RiseStaggerMillis
 private val RiseEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-private val RiseDistance = 56.dp
+private val RiseDistance = 42.dp
 
-// the essentials get this long, then the intro plays regardless. generous on purpose: Home's
-// first real composition is the heaviest frame of the launch, and it has to land while the mark
-// stands still, not halfway through its flight (on a debug build it can take a couple of seconds)
-private const val EssentialsTimeoutMillis = 2_500L
+// Short caps so Home appears immediately instead of holding a black splash for seconds
+private const val EssentialsTimeoutMillis = 320L
 
 // the splash steps aside once the first frame is up; a launch with no splash at all moves on after this
-private const val SplashTimeoutMillis = 1_500L
+private const val SplashTimeoutMillis = 200L
 
 // blur through the middle of the morph, in the mark's own units (it scales with the mark)
 private const val BlurPeak = 8f
 
 // the anime icon bouncing out into the mark, ripple and all
-private const val PreludeMillis = 1_100
+private const val PreludeMillis = 240
 
 // an adaptive icon on the splash: its 108dp layers drawn at 240dp, shown through a 160dp circle
 private const val IconLayerSize = 240f / 288f * 235f
@@ -310,6 +307,8 @@ fun LaunchIntroOverlay(state: LaunchIntroState, essentialsReady: Boolean) {
         if (state.prelude.value < 1f) {
             state.prelude.animateTo(1f, tween(PreludeMillis, easing = LinearEasing))
         }
+        // Release Home content hold as the brief flight begins so real cached rows appear right away
+        LaunchGate.holdHome = false
         val flightAt = SystemClock.uptimeMillis()
         var worstFrame = 0L
         coroutineScope {

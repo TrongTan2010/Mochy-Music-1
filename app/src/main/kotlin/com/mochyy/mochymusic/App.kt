@@ -71,9 +71,14 @@ class App : Application(), SingletonImageLoader.Factory {
         // init random-key vault first so transfer restore and settings can use it right away
         com.mochyy.mochymusic.utils.SecretVault.init(this)
         com.mochyy.mochymusic.importer.transfer.TransferRestore.applyPending(this)
-        // the folders a move to another drive left behind, cleared once nothing has them open
-        com.mochyy.mochymusic.playback.StoragePlaces.cleanUpLeftovers(this)
         super.onCreate()
+
+        // Start warming DataStore cache immediately on IO so UI/settings never block the main thread
+        PreferencesCache.start(this, applicationScope)
+        // Clean up leftover transfer folders off the main thread
+        applicationScope.launch(Dispatchers.IO) {
+            runCatching { com.mochyy.mochymusic.playback.StoragePlaces.cleanUpLeftovers(this@App) }
+        }
 
         AppLanguage.initialize(this)
         CrashHandler.install(this)
@@ -86,7 +91,6 @@ class App : Application(), SingletonImageLoader.Factory {
             Timber.plant(Timber.DebugTree())
         }
 
-        PreferencesCache.start(this, applicationScope)
         if (!isTelevision() && isMainProcess(this)) AppFonts.start(this, applicationScope)
         // tokens saved before the vault existed are sealed on the first start after the update
         applicationScope.launch(kotlinx.coroutines.Dispatchers.IO) { (dataStore as? com.mochyy.mochymusic.utils.SecretPreferences)?.sealLeftovers() }

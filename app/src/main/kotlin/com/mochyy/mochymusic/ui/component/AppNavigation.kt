@@ -293,7 +293,7 @@ fun AppNavigationBar(
         Box(
             modifier = Modifier
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .padding(horizontal = 22.dp, vertical = 8.dp)
                 .align(Alignment.TopStart)
                 // Morphs layout bounds smoothly between full-width 64dp dock and 54dp circular Home orb on the left.
                 // Using exact morphed width ensures touches to the right reach the adjacent compact Mini-Player!
@@ -416,7 +416,7 @@ fun AppNavigationBar(
                 modifier = Modifier
                     .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                     .align(Alignment.TopEnd)
-                    .padding(end = 20.dp, top = 8.dp + (NavBarHeight - DockOrbSize) / 2)
+                    .padding(end = 22.dp, top = 8.dp + (NavBarHeight - DockOrbSize) / 2)
                     .size(DockOrbSize)
                     .graphicsLayer {
                         val c = collapseProgress().coerceIn(0f, 1f)
