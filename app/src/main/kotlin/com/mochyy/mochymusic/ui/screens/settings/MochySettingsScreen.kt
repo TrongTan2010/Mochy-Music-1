@@ -256,6 +256,8 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                             .padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        CollapsedDockModeBubble()
+
                         // in the order of the design: sound first, then how the app acts and looks, then the rest
                         CategoryBubble(
                             title = stringResource(R.string.settings_audio_lab_category),
@@ -448,6 +450,72 @@ internal fun CategoryBubble(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 17.sp,
                 color = Color.White,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CollapsedDockModeBubble() {
+    val (showSearch, setShowSearch) = rememberPreference(
+        com.mochyy.mochymusic.constants.DockCollapsedSearchKey,
+        defaultValue = true,
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(BubbleColor)
+            .clickable { setShowSearch(!showSearch) }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(com.mochyy.mochymusic.ui.component.AppleMusicAccent.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.search),
+                    contentDescription = null,
+                    tint = com.mochyy.mochymusic.ui.component.AppleMusicAccent,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Thanh cuộn gọn: Home • Nhạc • Tìm kiếm",
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = if (showSearch) {
+                        "Đang bật: hiện nút Home + Nhạc + Tìm kiếm khi cuộn xuống"
+                    } else {
+                        "Đang tắt: chỉ hiện nút Dock + Nhạc khi cuộn xuống"
+                    },
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.6f),
+                    maxLines = 2,
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            com.mochyy.mochymusic.ui.component.AppSwitch(
+                checked = showSearch,
+                onCheckedChange = setShowSearch,
             )
         }
     }

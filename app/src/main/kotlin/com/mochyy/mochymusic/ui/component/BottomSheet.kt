@@ -329,6 +329,7 @@ fun BottomSheet(
             // where the mini player sits across the screen, and whether the wide bar's glass already lies under it
             val pillFrame = LocalMiniPillFrame.current
             val dockCollapse = LocalDockCollapseProgress.current
+            val showCollapsedSearch = LocalDockCollapsedSearchEnabled.current
             // a look's glass that draws its own edge leaves mochy's hairline and shadow off the mini player
             val moduleGlass = rememberChromeModuleGlass()
             val currentPillFrame by androidx.compose.runtime.rememberUpdatedState(pillFrame)
@@ -376,7 +377,9 @@ fun BottomSheet(
                 // The mini player's faint shadow. The sheet's clip would cut it off, so it's a
                 // layer of its own placed and tilted exactly like the sheet, and it fades with the
                 // hairline. It stays the pill's size: the opening sheet grows over it.
-                if (!pillFrame.merged && moduleGlass?.shadow != false) PillShadow(state, pillPress, pillFrame, dockCollapse)
+                if (!pillFrame.merged && moduleGlass?.shadow != false) {
+                    PillShadow(state, pillPress, pillFrame, dockCollapse, showCollapsedSearch)
+                }
 
                 Box(
                     modifier = Modifier
@@ -387,9 +390,10 @@ fun BottomSheet(
                             val p = state.progress.coerceIn(0f, 1f)
                             val c = if (pillFrame.merged) 0f else dockCollapse().coerceIn(0f, 1f) * (1f - p)
                             val extraStart = DockOrbClearance * c
+                            val extraEnd = if (showCollapsedSearch) DockOrbClearance * c else 0.dp
                             sheetClipShape.cr = androidx.compose.ui.unit.lerp(pillCorner, 0.dp, p).toPx()
                             sheetClipShape.left = (androidx.compose.ui.unit.lerp(pillFrame.start, 0.dp, p) + extraStart).toPx()
-                            sheetClipShape.right = androidx.compose.ui.unit.lerp(pillFrame.end, 0.dp, p).toPx()
+                            sheetClipShape.right = (androidx.compose.ui.unit.lerp(pillFrame.end, 0.dp, p) + extraEnd).toPx()
                             sheetClipShape.visibleHeight = androidx.compose.ui.unit.lerp(currentPillFrame.height, state.expandedBound, p).toPx()
 
                             shape = sheetClipShape
@@ -403,8 +407,9 @@ fun BottomSheet(
                             val edge = 1f - p / PillEdgeFadeEnd
                             if (edge > 0f && !pillFrame.merged && moduleGlass?.outline != false) {
                                 val c = dockCollapse().coerceIn(0f, 1f) * (1f - p)
+                                val extraEnd = if (showCollapsedSearch) DockOrbClearance * c else 0.dp
                                 val left = (androidx.compose.ui.unit.lerp(pillFrame.start, 0.dp, p) + DockOrbClearance * c).toPx()
-                                val right = androidx.compose.ui.unit.lerp(pillFrame.end, 0.dp, p).toPx()
+                                val right = (androidx.compose.ui.unit.lerp(pillFrame.end, 0.dp, p) + extraEnd).toPx()
                                 drawChromeOutline(
                                     topLeft = androidx.compose.ui.geometry.Offset(left, 0f),
                                     size = androidx.compose.ui.geometry.Size(
@@ -423,7 +428,10 @@ fun BottomSheet(
                             // to tell apart from a button's.
                             awaitEachGesture {
                                 val down = awaitFirstDown()
-                                if (!state.isCollapsed || down.position.x < sheetClipShape.left) return@awaitEachGesture
+                                val rightLimit = size.width - sheetClipShape.right
+                                if (!state.isCollapsed || down.position.x < sheetClipShape.left || down.position.x > rightLimit) {
+                                    return@awaitEachGesture
+                                }
                                 down.consume()
                                 val up = waitForUpOrCancellation() ?: return@awaitEachGesture
                                 up.consume()
@@ -771,6 +779,7 @@ private fun BoxScope.PillShadow(
     pillPress: PillPress,
     pillFrame: MiniPillFrame,
     dockCollapse: () -> Float = { 0f },
+    showCollapsedSearch: Boolean = true,
 ) {
     val showPillShadow by remember(state) {
         derivedStateOf { !state.isDismissed && state.progress < PillEdgeFadeEnd }
@@ -793,7 +802,7 @@ private fun BoxScope.PillShadow(
                         val p = state.progress.coerceIn(0f, 1f)
                         val c = dockCollapse().coerceIn(0f, 1f) * (1f - p)
                         val leftPx = (pillFrame.start + DockOrbClearance * c).roundToPx()
-                        val rightPx = pillFrame.end.roundToPx()
+                        val rightPx = (pillFrame.end + if (showCollapsedSearch) DockOrbClearance * c else 0.dp).roundToPx()
                         val w = (constraints.maxWidth - leftPx - rightPx).coerceAtLeast(1)
                         val h = pillFrame.height.roundToPx().coerceAtLeast(1)
                         val placeable = measurable.measure(androidx.compose.ui.unit.Constraints.fixed(w, h))

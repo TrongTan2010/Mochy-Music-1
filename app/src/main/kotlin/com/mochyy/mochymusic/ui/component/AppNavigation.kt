@@ -238,10 +238,14 @@ fun AppNavigationBar(
     onOpenRoute: (String) -> Unit = {},
     /** the player is over the app, so a look's moving bar can rest */
     obscured: () -> Boolean = { false },
-    /** ColorOS 17 Living Flow scroll morph progress: 0f = full 4-tab capsule, 1f = 56dp left floating orb */
+    /** ColorOS 17 / Apple Music iOS 26 scroll morph progress: 0f = full 4-tab capsule, 1f = collapsed orbs */
     collapseProgress: () -> Float = { 0f },
-    /** Tapping the collapsed floating orb expands the 4-tab dock back open */
+    /** Tapping the collapsed left Home/Dock orb expands the 4-tab dock back open */
     onExpandDock: () -> Unit = {},
+    /** When true, scrolling down shows [Home Orb] [Music Pill] [Search Orb]; when false, [Dock Orb] [Music Pill] */
+    showCollapsedSearch: Boolean = true,
+    /** Tapping the collapsed right Search orb jumps directly into Search */
+    onSearchOrbClick: () -> Unit = {},
 ) {
     // a look with a nav bar of its own draws it in this one's place
     val moduleBar = com.mochyy.mochymusic.modules.skin.ActiveSkin.bar
@@ -271,10 +275,18 @@ fun AppNavigationBar(
     val glassPill = remember(pill, tabCount, density) {
         { bar: Size -> pill.forGlass(bar, with(density) { NavRowPadding.toPx() }, tabCount, density) }
     }
-    val activeScreen = navigationItems.getOrNull(selectedIndex.coerceAtLeast(0)) ?: Screens.Home
-    val orbIconPainter = coil3.compose.rememberAsyncImagePainter(model = activeScreen.iconIdActive)
+    val leftOrbScreen = if (showCollapsedSearch) {
+        Screens.Home
+    } else {
+        navigationItems.getOrNull(selectedIndex.coerceAtLeast(0)) ?: Screens.Home
+    }
+    val orbIconPainter = coil3.compose.rememberAsyncImagePainter(model = leftOrbScreen.iconIdActive)
+    val searchOrbPainter = coil3.compose.rememberAsyncImagePainter(model = Screens.Search.iconIdActive)
     val orbClickable by remember(collapseProgress) {
         androidx.compose.runtime.derivedStateOf { collapseProgress() >= 0.45f }
+    }
+    val searchOrbMounted by remember(collapseProgress, showCollapsedSearch) {
+        androidx.compose.runtime.derivedStateOf { showCollapsedSearch && collapseProgress() > 0.25f }
     }
 
     Box(modifier = modifier.fillMaxWidth()) {
@@ -283,7 +295,7 @@ fun AppNavigationBar(
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                 .padding(horizontal = 20.dp, vertical = 8.dp)
                 .align(Alignment.TopStart)
-                // Morphs layout bounds smoothly between full-width 64dp dock and 56dp circular orb on the left.
+                // Morphs layout bounds smoothly between full-width 64dp dock and 54dp circular Home orb on the left.
                 // Using exact morphed width ensures touches to the right reach the adjacent compact Mini-Player!
                 .layout { measurable, constraints ->
                     val c = collapseProgress().coerceIn(0f, 1f)
@@ -349,7 +361,7 @@ fun AppNavigationBar(
                 }
             }
 
-            // ColorOS 17 collapsed floating Orb content: active tab icon with soft Luminous Coral glow
+            // Collapsed floating left Home/Dock Orb content with soft Luminous Coral glow
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -389,9 +401,59 @@ fun AppNavigationBar(
             ) {
                 Icon(
                     painter = orbIconPainter,
-                    contentDescription = "Mở thanh điều hướng",
+                    contentDescription = "Trang chủ",
                     tint = AppleMusicAccent,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(23.dp),
+                )
+            }
+        }
+
+        // Optional right-side circular Search Orb (Apple Music iOS 26 3-slot collapsed bar: Home • Music • Search)
+        if (searchOrbMounted) {
+            val isOnSearch = selectedTabRoute == Screens.Search.route
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                    .align(Alignment.TopEnd)
+                    .padding(end = 20.dp, top = 8.dp + (NavBarHeight - DockOrbSize) / 2)
+                    .size(DockOrbSize)
+                    .graphicsLayer {
+                        val c = collapseProgress().coerceIn(0f, 1f)
+                        val vis = ((c - 0.25f) / 0.75f).coerceIn(0f, 1f)
+                        alpha = vis
+                        val s = 0.55f + 0.45f * vis
+                        scaleX = s
+                        scaleY = s
+                    }
+                    .press3D(maxTilt = 4f, pressedScale = 0.94f)
+                    .then(if (moduleGlass?.shadow == false) Modifier else Modifier.dropShadow(NavBarShape, ChromeShadow))
+                    .clip(NavBarShape)
+                    .drawWithContent {
+                        drawContent()
+                        if (moduleGlass?.outline != false) drawChromeOutline(Offset.Zero, size, cornerRadius = size.height / 2f)
+                    }
+                    .then(
+                        if (orbClickable) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onSearchOrbClick,
+                            )
+                        } else Modifier
+                    ),
+            ) {
+                FrostedChromeGlass(
+                    state = glassState,
+                    pureBlack = pureBlack,
+                    accentWash = accentWash,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Icon(
+                    painter = searchOrbPainter,
+                    contentDescription = "Tìm kiếm",
+                    tint = if (isOnSearch) AppleMusicAccent else Color.White.copy(alpha = 0.92f),
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }

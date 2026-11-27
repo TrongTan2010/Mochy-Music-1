@@ -976,7 +976,11 @@ class MainActivity : ComponentActivity() {
                                 forceShowSetup = false
                             }
                         ) {
-                            // ColorOS 17 Living Flow scroll-to-morph: dock collapses into floating left orb + compact Mini-Player capsule
+                            // ColorOS 17 / Apple Music iOS 26 scroll-to-morph: [Home Orb] [Music Pill] [Search Orb]
+                            val (dockCollapsedSearch) = rememberPreference(
+                                com.mochyy.mochymusic.constants.DockCollapsedSearchKey,
+                                defaultValue = true,
+                            )
                             var dockCollapsed by remember { mutableStateOf(false) }
                             LaunchedEffect(currentRoute) { dockCollapsed = false }
                             val dockCollapseState = animateFloatAsState(
@@ -1154,6 +1158,7 @@ class MainActivity : ComponentActivity() {
                                         CompositionLocalProvider(
                                             com.mochyy.mochymusic.ui.component.LocalMiniPillFrame provides miniPill,
                                             com.mochyy.mochymusic.ui.component.LocalDockCollapseProgress provides dockCollapseProvider,
+                                            com.mochyy.mochymusic.ui.component.LocalDockCollapsedSearchEnabled provides dockCollapsedSearch,
                                         ) {
                                             BottomSheetPlayer(
                                                 state = playerBottomSheetState,
@@ -1165,7 +1170,7 @@ class MainActivity : ComponentActivity() {
                                                         val progress = playerBottomSheetState.progress.coerceIn(0f, 1f)
                                                         val collapse = dockCollapseProvider() * (1f - progress)
                                                         if (collapse > 0.001f) {
-                                                            // Aligns the 60dp Mini-Player capsule vertically with the 56dp ColorOS 17 Dock Orb
+                                                            // Aligns the 60dp Mini-Player capsule vertically with the 54dp Home & Search Orbs
                                                             val dropPx = (MiniPlayerHeight + MiniPlayerBottomSpacing + 10.dp).toPx()
                                                             translationY = dropPx * collapse
                                                         }
@@ -1205,7 +1210,18 @@ class MainActivity : ComponentActivity() {
                                                 },
                                                 obscured = { playerBottomSheetState.progress > 0.001f },
                                                 collapseProgress = dockCollapseProvider,
-                                                onExpandDock = { dockCollapsed = false },
+                                                onExpandDock = {
+                                                    dockCollapsed = false
+                                                    if (dockCollapsedSearch && selectedTabRoute != Screens.Home.route) {
+                                                        onNavItemClick(Screens.Home, false)
+                                                    }
+                                                },
+                                                showCollapsedSearch = dockCollapsedSearch,
+                                                onSearchOrbClick = {
+                                                    dockCollapsed = false
+                                                    onNavItemClick(Screens.Search, selectedTabRoute == Screens.Search.route)
+                                                    onSearchDoubleTap()
+                                                },
                                                 modifier = barMotion,
                                             )
                                         }

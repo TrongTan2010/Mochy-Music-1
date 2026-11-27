@@ -890,6 +890,7 @@ val DefaultPlayerCoverStyle: PlayerCoverStyle
 
 val LyricsBoldnessKey = intPreferencesKey("lyricsBoldness")
 val DynamicCoverBlurKey = booleanPreferencesKey("dynamicCoverBlur")
+val DockCollapsedSearchKey = booleanPreferencesKey("dockCollapsedSearch")
 
 val ShowBigDiscStylesKey = booleanPreferencesKey("showBigDiscStyles")
 

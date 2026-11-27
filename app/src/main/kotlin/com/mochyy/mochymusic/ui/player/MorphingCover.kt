@@ -227,6 +227,10 @@ private class MorphEndpointsPx(
     val coverOffset: () -> Float,
     /** ColorOS 17 collapsed dock orb horizontal clearance (px) added to mini player left edge */
     val dockShiftPx: () -> Float = { 0f },
+    /** Optional right-side Search Orb horizontal clearance (px) subtracted from mini player right edge */
+    val dockEndShiftPx: () -> Float = { 0f },
+    /** Collapse progress (0..1) while right-side Search Orb mode is active, so Skip fades & Play slides right */
+    val compactThreeSlot: () -> Float = { 0f },
 ) {
     /** the full-size cover's box (x, y, width, height), its region moved with the controls under it */
     fun fullArt(): FloatArray {
@@ -351,12 +355,17 @@ private fun Modifier.morphLayout(
     val (x, y, w, h) = when (element) {
         MorphElement.ART -> endpointsPx.artRect(p, hOffset, lyricsProgressProvider())
         MorphElement.PLAY -> {
-            val playX = lerpF(endpointsPx.miniPlayXPx, endpointsPx.fullPlayXPx, p)
+            val endShift = endpointsPx.dockEndShiftPx()
+            val threeSlot = endpointsPx.compactThreeSlot()
+            // When collapsed into 3 slots (Home + Music + Search), Play glides into the Skip slot for spacious text room
+            val baseMiniPlayX = lerpF(endpointsPx.miniPlayXPx, endpointsPx.miniSkipXPx, threeSlot) - endShift
+            val playX = lerpF(baseMiniPlayX, endpointsPx.fullPlayXPx, p)
             val playY = lerpF(endpointsPx.miniPlayYPx, endpointsPx.fullPlayYPx, p)
             floatArrayOf(playX, playY, -1f, -1f)
         }
         MorphElement.SKIP -> {
-            val skipX = lerpF(endpointsPx.miniSkipXPx, endpointsPx.fullPlayXPx + 80f, p)
+            val endShift = endpointsPx.dockEndShiftPx()
+            val skipX = lerpF(endpointsPx.miniSkipXPx - endShift, endpointsPx.fullPlayXPx + 80f, p)
             val skipY = lerpF(endpointsPx.miniSkipYPx, endpointsPx.fullPlayYPx, p)
             floatArrayOf(skipX, skipY, -1f, -1f)
         }
@@ -367,9 +376,13 @@ private fun Modifier.morphLayout(
         }
         MorphElement.TEXT -> {
             val shift = endpointsPx.dockShiftPx()
+            val endShift = endpointsPx.dockEndShiftPx()
+            val threeSlot = endpointsPx.compactThreeSlot()
+            val skipBonus = (endpointsPx.miniSkipXPx - endpointsPx.miniPlayXPx) * threeSlot
             val textX = lerpF(endpointsPx.miniTextXPx + shift, endpointsPx.fullTextXPx, p) + hOffset
             val textY = lerpF(0f, endpointsPx.fullTextYPx + endpointsPx.coverOffset(), p)
-            val textW = lerpF((endpointsPx.miniTextWidthPx - shift).coerceAtLeast(48f), endpointsPx.fullTextWidthPx, p)
+            val miniWidth = (endpointsPx.miniTextWidthPx - shift - endShift + skipBonus).coerceAtLeast(48f)
+            val textW = lerpF(miniWidth, endpointsPx.fullTextWidthPx, p)
             floatArrayOf(textX, textY, textW, endpointsPx.miniHeightPx)
         }
         MorphElement.BACKDROP -> {
@@ -568,8 +581,9 @@ fun MorphingCover(
 
     val currentCoverOffset by androidx.compose.runtime.rememberUpdatedState(coverOffsetProvider)
     val dockCollapse = com.mochyy.mochymusic.ui.component.LocalDockCollapseProgress.current
+    val showCollapsedSearch = com.mochyy.mochymusic.ui.component.LocalDockCollapsedSearchEnabled.current
     val dockOrbClearancePx = with(density) { com.mochyy.mochymusic.ui.component.DockOrbClearance.toPx() }
-    val endpointsPx = remember(endpoints, density, pillFrame, dockCollapse, dockOrbClearancePx) {
+    val endpointsPx = remember(endpoints, density, pillFrame, dockCollapse, showCollapsedSearch, dockOrbClearancePx) {
         with(density) {
             MorphEndpointsPx(
                 miniArtWidthPx = endpoints.miniArtWidth.toPx(),
@@ -604,6 +618,8 @@ fun MorphingCover(
                 dpPx = density.density,
                 coverOffset = { currentCoverOffset() },
                 dockShiftPx = { if (pillFrame.merged) 0f else dockOrbClearancePx * dockCollapse().coerceIn(0f, 1f) },
+                dockEndShiftPx = { if (pillFrame.merged || !showCollapsedSearch) 0f else dockOrbClearancePx * dockCollapse().coerceIn(0f, 1f) },
+                compactThreeSlot = { if (pillFrame.merged || !showCollapsedSearch) 0f else dockCollapse().coerceIn(0f, 1f) },
             )
         }
     }
@@ -1259,17 +1275,19 @@ fun MorphingCover(
                     .requiredSize(miniPlaySize)
                     .graphicsLayer {
                         val p = progressProvider()
-                        val playScale = 1f + (p * 1.0f)
+                        val hideForThreeSlot = (1f - endpointsPx.compactThreeSlot() * 2.2f).coerceIn(0f, 1f)
+                        val playScale = (1f + (p * 1.0f)) * (0.7f + 0.3f * hideForThreeSlot)
                         scaleX = playScale
                         scaleY = playScale
                         transformOrigin = TransformOrigin(0.5f, 0.5f)
-                        alpha = (1f - (p / 0.5f)).coerceIn(0f, 1f)
+                        alpha = (1f - (p / 0.5f)).coerceIn(0f, 1f) * hideForThreeSlot
                     }
             ) {
                 val skipScope = rememberCoroutineScope()
                 val skipCycle = remember { SkipCycleState() }
                 MiniPlayerButton(
                     onClick = {
+                        if (endpointsPx.compactThreeSlot() > 0.45f) return@MiniPlayerButton
                         skipScope.launch { skipCycle.step() }
                         playerConnection?.let { connection ->
                             // through the same skip as every other button (its fade, the cast), with the row gliding first so the song change can't make it stutter
@@ -1469,6 +1487,7 @@ private fun MiniPlayerProgressLine(
     } else 0f
 
     val dockCollapse = com.mochyy.mochymusic.ui.component.LocalDockCollapseProgress.current
+    val showCollapsedSearch = com.mochyy.mochymusic.ui.component.LocalDockCollapsedSearchEnabled.current
     androidx.compose.foundation.Canvas(
         modifier = Modifier
             .fillMaxWidth()
@@ -1477,11 +1496,15 @@ private fun MiniPlayerProgressLine(
                 alpha = (1f - progressProvider() / 0.25f).coerceIn(0f, 1f)
             }
     ) {
+        val c = dockCollapse().coerceIn(0f, 1f)
         val extraStart = if (pillFrame.merged) 0f else {
-            com.mochyy.mochymusic.ui.component.DockOrbClearance.toPx() * dockCollapse().coerceIn(0f, 1f)
+            com.mochyy.mochymusic.ui.component.DockOrbClearance.toPx() * c
+        }
+        val extraEnd = if (pillFrame.merged || !showCollapsedSearch) 0f else {
+            com.mochyy.mochymusic.ui.component.DockOrbClearance.toPx() * c
         }
         val leftInset = (pillFrame.start + 22.dp).toPx() + extraStart
-        val rightInset = (pillFrame.end + 22.dp).toPx()
+        val rightInset = (pillFrame.end + 22.dp).toPx() + extraEnd
         val barWidth = (size.width - leftInset - rightInset).coerceAtLeast(0f)
         if (barWidth <= 0f) return@Canvas
         val barHeight = 2.dp.toPx()
@@ -1926,7 +1949,7 @@ private fun Modifier.sheetShapeLayout(
 ) = this.layout { measurable, constraints ->
     val p = progressProvider()
     val left = kotlin.math.floor((startPx + endpointsPx.dockShiftPx()) * (1f - p)).toInt()
-    val right = kotlin.math.ceil(endpointsPx.fullWidthPx - endPx * (1f - p)).toInt()
+    val right = kotlin.math.ceil(endpointsPx.fullWidthPx - (endPx + endpointsPx.dockEndShiftPx()) * (1f - p)).toInt()
     val height = kotlin.math.ceil(lerpF(endpointsPx.miniHeightPx, endpointsPx.fullHeightPx, p)).toInt()
     val placeable = measurable.measure(
         Constraints.fixed((right - left).coerceAtLeast(1), height.coerceAtLeast(1))

@@ -70,17 +70,20 @@ val PhoneMiniPill = MiniPillFrame(start = 20.dp, end = 20.dp, merged = false, wi
 
 val LocalMiniPillFrame = staticCompositionLocalOf { PhoneMiniPill }
 
-/** ColorOS 17 Living Flow collapsed dock orb diameter & gap before the adjacent Mini-Player capsule. */
-val DockOrbSize = 56.dp
-val DockOrbGap = 10.dp
+/** ColorOS 17 / Apple Music iOS 26 collapsed dock orb diameter & gap before the adjacent Mini-Player capsule. */
+val DockOrbSize = 54.dp
+val DockOrbGap = 8.dp
 val DockOrbClearance = DockOrbSize + DockOrbGap
 
 /**
  * 0f = full 4-tab dock + full-width Mini-Player stacked above it.
- * 1f = ColorOS 17 collapsed row: 56dp floating glass Orb on the left + compact Mini-Player fluid capsule on the right.
+ * 1f = collapsed row: floating glass Home Orb on the left + compact Mini-Player capsule (+ optional Search Orb on the right).
  * Provided as a lambda so layout/draw/graphicsLayer read it at 60-120fps with zero recomposition.
  */
 val LocalDockCollapseProgress = staticCompositionLocalOf<() -> Float> { { 0f } }
+
+/** When true, scrolling down shows 3 elements: [Home Orb] [Music Mini-Player] [Search Orb]. When false: [Dock Orb] [Music Mini-Player]. */
+val LocalDockCollapsedSearchEnabled = staticCompositionLocalOf { true }
 
 // each tab of the wide bar, wide enough for Apple Music icon + label
 private val WideTabWidth = 72.dp
