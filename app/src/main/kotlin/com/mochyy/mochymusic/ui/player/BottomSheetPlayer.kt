@@ -1184,8 +1184,13 @@ private fun PlayerSheet(
                     onCoveredChange = { styleQueueCovered = it },
                 )
                 com.mochyy.mochymusic.ui.player.styles.ModuleSheetHost(styleActions, playerOpen = styleInteractive)
-                // the ipod, the full video mode and the bedside each have their own close, a bar over them would just be in the way; a module player can take it away too
-                if (!onTv && playerStyle != PlayerStyle.IPOD && playerStyle != PlayerStyle.VIDEO && !playerStyle.isBedside &&
+                // hide PlayerHandle on styles with their own top handle and whenever full-screen Lyrics/Queue is open
+                val styleHasOwnHandle = playerStyle == PlayerStyle.APPLE_MUSIC ||
+                    playerStyle == PlayerStyle.LIQUID_GLASS ||
+                    playerStyle == PlayerStyle.VINYL_CD ||
+                    playerStyle == PlayerStyle.MINIMAL_DARK
+                if (!onTv && !styleLyricsOpen && !styleQueueOpen && !styleHasOwnHandle &&
+                    playerStyle != PlayerStyle.IPOD && playerStyle != PlayerStyle.VIDEO && !playerStyle.isBedside &&
                     !com.mochyy.mochymusic.ui.player.styles.moduleHidesHandle(playerStyle)
                 ) PlayerHandle(
                     state = handleState,
@@ -1863,17 +1868,19 @@ private fun PlayerSheet(
             // a module's own sheet, asked for from the other menu, opens over the flagship too
             com.mochyy.mochymusic.ui.player.styles.ModuleSheetHost(styleActions, playerOpen = { state.isExpanded })
 
-            // over everything on the player, pages included; a tv closes it with the back button instead
+            // Fade PlayerHandle away whenever Lyrics or Queue is open so it never overlaps the song cover header
             if (!onTv) PlayerHandle(
                 state = handleState,
                 sheet = state,
                 statusBarTop = statusBarTopInset,
-                enabled = { !studio.engaged },
+                enabled = { !studio.engaged && !showLyrics && !showQueue },
                 onMenuClick = {
                     menuFromLyrics = showLyrics
                     showActionMenu = true
                 },
-                hiddenAmount = { controlsHiddenState.value },
+                hiddenAmount = {
+                    maxOf(controlsHiddenState.value, transition.headerProgress.coerceIn(0f, 1f))
+                },
                 modifier = Modifier.align(Alignment.TopCenter),
             )
         }

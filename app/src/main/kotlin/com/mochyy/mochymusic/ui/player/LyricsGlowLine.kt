@@ -355,9 +355,9 @@ fun LyricsGlowLine(
     }
     val activeTextShadow = remember(activeGlowColor, glowStrength) {
         if (glowStrength <= 0.02f) null else androidx.compose.ui.graphics.Shadow(
-            color = activeGlowColor.copy(alpha = (0.78f * glowStrength).coerceIn(0f, 1f)),
+            color = activeGlowColor.copy(alpha = (0.58f * glowStrength).coerceIn(0f, 0.85f)),
             offset = Offset.Zero,
-            blurRadius = (26f * glowStrength).coerceIn(4f, 44f),
+            blurRadius = (18f * glowStrength).coerceIn(4f, 26f),
         )
     }
     // kept above the sweep/plain switch, so the line already has its bold breaks the moment it goes plain again
@@ -459,36 +459,6 @@ fun LyricsGlowLine(
     Column(
         horizontalAlignment = columnAlign,
         modifier = Modifier
-            .drawBehind {
-                if (suppressEffectsProvider()) return@drawBehind
-                val g = com.mochyy.mochymusic.ui.component.UiCustomTheme.lyricsGlowStrength
-                val amp = waveAmplitudeState.value.coerceIn(0f, 1f) * g
-                if (amp <= 0.02f || size.width < 1f || size.height < 1f) return@drawBehind
-                val cx = when {
-                    alignment == LyricsAlignment.CENTER -> size.width * 0.5f
-                    onLeft -> size.width * 0.42f
-                    else -> size.width * 0.58f
-                }
-                val cy = size.height * 0.5f
-                val rx = (size.width * 0.62f).coerceAtLeast(size.height)
-                val ry = (size.height * 0.95f).coerceAtLeast(1f)
-                withTransform({
-                    translate(left = cx, top = cy)
-                    scale(scaleX = 1f, scaleY = (ry / rx).coerceIn(0.25f, 1f), pivot = Offset.Zero)
-                }) {
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            0f to activeGlowColor.copy(alpha = (0.22f * amp).coerceIn(0f, 0.42f)),
-                            0.45f to activeGlowColor.copy(alpha = (0.09f * amp).coerceIn(0f, 0.20f)),
-                            1f to Color.Transparent,
-                            center = Offset.Zero,
-                            radius = rx,
-                        ),
-                        radius = rx,
-                        center = Offset.Zero,
-                    )
-                }
-            }
             .padding(horizontal = LyricsTapPadH, vertical = LyricsTapPadV)
             .then(steadyWrap.modifier),
     ) {
@@ -525,31 +495,40 @@ fun LyricsGlowLine(
             // active line moves. Needs its own layout capture — the karaoke path's holder only
             // exists while the sweep is running.
             val plainLayout = remember(leadText) { arrayOfNulls<TextLayoutResult>(1) }
-            BasicText(
-                // same characters as the lead text, with a line break wherever the bold line wraps
-                text = steadyWrap.text,
-                style = leadStyle.copy(
-                    fontWeight = if (state == LyricsLineState.ACTIVE) effectiveSungWeight else effectiveRestingWeight,
-                    shadow = if (state == LyricsLineState.ACTIVE) activeTextShadow else null,
-                ),
-                color = textColor,
-                // No maxLines cap. A capped line ellipsised into "..." and simply lost the rest of
-                // the words — a long line is meant to wrap, not to be truncated, and there is
-                // nowhere else the reader can go to see what was cut.
-                overflow = TextOverflow.Clip,
-                onTextLayout = { plainLayout[0] = it },
-                // No karaoke head on an inactive line, so nothing is lit — the readings stay
-                // uniformly dim, matching the words above them.
-                modifier = rememberRubyOverlay(
-                    layoutHolder = plainLayout,
-                    ruby = ruby,
-                    textLength = leadText.length,
-                    placement = rubyPlacement,
-                    dimColor = readingColor,
-                    litColor = readingColor,
-                    headProvider = { 0f },
-                ),
-            )
+            // Expand bleed room around active line-synced text so soft glow shadow never clips into a box
+            Box(
+                modifier = if (state == LyricsLineState.ACTIVE && activeTextShadow != null) {
+                    Modifier.layerBleed(MotionBleed).padding(MotionBleed)
+                } else {
+                    Modifier
+                },
+            ) {
+                BasicText(
+                    // same characters as the lead text, with a line break wherever the bold line wraps
+                    text = steadyWrap.text,
+                    style = leadStyle.copy(
+                        fontWeight = if (state == LyricsLineState.ACTIVE) effectiveSungWeight else effectiveRestingWeight,
+                        shadow = if (state == LyricsLineState.ACTIVE && !suppressEffectsProvider()) activeTextShadow else null,
+                    ),
+                    color = textColor,
+                    // No maxLines cap. A capped line ellipsised into "..." and simply lost the rest of
+                    // the words — a long line is meant to wrap, not to be truncated, and there is
+                    // nowhere else the reader can go to see what was cut.
+                    overflow = TextOverflow.Clip,
+                    onTextLayout = { plainLayout[0] = it },
+                    // No karaoke head on an inactive line, so nothing is lit — the readings stay
+                    // uniformly dim, matching the words above them.
+                    modifier = rememberRubyOverlay(
+                        layoutHolder = plainLayout,
+                        ruby = ruby,
+                        textLength = leadText.length,
+                        placement = rubyPlacement,
+                        dimColor = readingColor,
+                        litColor = readingColor,
+                        headProvider = { 0f },
+                    ),
+                )
+            }
         }
 
         FadingSubText(
@@ -938,14 +917,14 @@ private const val SpaceTimeWeight = 0.4f
 private const val BloomCutoff = 0.01f
 
 /** Style 1 without AGSL (API < 33): a soft light behind a held word stands in for the bloom. */
-private const val FakeGlowAlpha = 0.34f
+private const val FakeGlowAlpha = 0.28f
 
-private const val BloomRadiusPx = 4.6f
+private const val BloomRadiusPx = 4.2f
 
-private const val BloomStrength = 2.65f
+private const val BloomStrength = 2.25f
 
 private const val BloomLagChars = 1.6f
-private const val BloomSpanChars = 4.5f
+private const val BloomSpanChars = 4.2f
 
 /**
  * Style 1 shader: bloom only. Words are moved by drawing (see [rememberWordMotionModifier]), so
@@ -1232,17 +1211,10 @@ internal fun KaraokeSweepText(
             )
 
             if (reached) {
-                val g = com.mochyy.mochymusic.ui.component.UiCustomTheme.lyricsGlowStrength
-                val litGlowShadow = remember(highlightColor, g) {
-                    if (g <= 0.02f) null else androidx.compose.ui.graphics.Shadow(
-                        color = highlightColor.copy(alpha = (0.68f * g).coerceIn(0f, 1f)),
-                        offset = Offset.Zero,
-                        blurRadius = (20f * g).coerceIn(4f, 36f),
-                    )
-                }
+                // Keep clean text inside clipPath(sung) so glow is rendered solely by the outer unclipped bloom shader
                 Text(
                     text = text,
-                    style = style.copy(shadow = litGlowShadow),
+                    style = style,
                     color = highlightColor,
                     fontWeight = fontWeight,
                     textAlign = textAlign,
@@ -1647,8 +1619,9 @@ internal fun rememberBloomModifier(
     return Modifier.graphicsLayer {
         val layout = layoutHolder[0]
         val amp = amplitudeProvider().coerceIn(0f, 1f)
-        val glow = head.glow.floatValue
-        val bloom = BloomStrength * glow * amp
+        val customGlow = com.mochyy.mochymusic.ui.component.UiCustomTheme.lyricsGlowStrength
+        val glow = maxOf(head.glow.floatValue, if (head.offset.floatValue > 0f) 0.52f else 0f)
+        val bloom = BloomStrength * glow * amp * customGlow
         if (layout == null || textLength == 0 || bloom <= BloomCutoff) {
             renderEffect = null
             return@graphicsLayer

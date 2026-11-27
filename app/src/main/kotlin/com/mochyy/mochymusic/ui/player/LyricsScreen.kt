@@ -637,9 +637,8 @@ fun LyricsScreen(
                     }
                 }
                 .padding(horizontal = LyricsHeaderArtX)
-                // Matches where the morph layer actually draws the cover, so the hitbox sits on
-                // the artwork and the menu centres against it.
-                .padding(top = LyricsHeaderArtTopFromStatusBar, bottom = 10.dp)
+                // Matches where the morph layer actually draws the cover, with extra bottom breathing room before lyrics
+                .padding(top = LyricsHeaderArtTopFromStatusBar, bottom = 22.dp)
         ) {
 
             Box(
