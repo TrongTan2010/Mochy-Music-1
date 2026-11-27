@@ -283,7 +283,7 @@ class SoundCloudModule : SourceModule {
         for (transcoding in ordered) {
             val resolvedUrl = resolveTranscodingUrl(transcoding.url, clientId, scTrack.trackAuthorization)
                 ?: continue
-            return ResolveResult.Found(buildSourceStream(scTrack, transcoding, resolvedUrl, confidence = 1.0))
+            return ResolveResult.Found(buildSourceStream(scTrack, transcoding, resolvedUrl, confidence = 1.0f))
         }
         directTracks.remove(scTrackId)
         return ResolveResult.Unavailable("Could not resolve SoundCloud stream URL")
@@ -382,7 +382,7 @@ class SoundCloudModule : SourceModule {
         scTrack: ScTrack,
         transcoding: ScTranscoding,
         resolvedUrl: String,
-        confidence: Double,
+        confidence: Float,
     ): SourceStream {
         val isProgressive = transcoding.protocol == "progressive"
         val isOpus = transcoding.mimeType.contains("opus", ignoreCase = true)
