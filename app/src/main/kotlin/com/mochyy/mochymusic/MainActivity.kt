@@ -570,42 +570,88 @@ class MainActivity : ComponentActivity() {
         // Don't stall cold start waiting for album art decode; update dynamic theme color asynchronously
         var themeSettled by remember { mutableStateOf(true) }
 
-        LaunchedEffect(playerConnection, enableDynamicTheme, selectedThemeColor) {
+        val detectSongColor = enableDynamicTheme ||
+            com.mochyy.mochymusic.ui.component.UiCustomTheme.dynamicSongAccent ||
+            com.mochyy.mochymusic.ui.component.UiCustomTheme.dynamicDockColor
+
+        LaunchedEffect(playerConnection, detectSongColor, selectedThemeColor) {
             val playerConnection = playerConnection
-            if (!enableDynamicTheme || playerConnection == null) {
+            if (!detectSongColor || playerConnection == null) {
                 themeColor = selectedThemeColor
+                com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongAccent = null
+                com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongDockTint = null
                 return@LaunchedEffect
             }
 
             // pause dynamic theme extraction while the activity is stopped so background track changes don't decode covers or recompose hidden ui
             lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
                 playerConnection.service.currentMediaMetadata.collectLatest { song ->
-                    if (song?.thumbnailUrl != null) {
-                        withContext(Dispatchers.IO) {
-                            try {
-                                val result = imageLoader.execute(
-                                    ImageRequest.Builder(this@MainActivity)
-                                        .data(song.thumbnailUrl)
-                                        .size(64, 64)
-                                        .allowHardware(false)
-                                        .memoryCachePolicy(CachePolicy.DISABLED)
-                                        .diskCachePolicy(CachePolicy.ENABLED)
-                                        .networkCachePolicy(CachePolicy.ENABLED)
-                                        .crossfade(false)
-                                        .build()
-                                )
-                                themeColor = result.image?.toBitmap()?.extractThemeColor() ?: selectedThemeColor
-                            } catch (e: Exception) {
-
+                    val thumbUrl = song?.thumbnailUrl
+                    if (!thumbUrl.isNullOrBlank()) {
+                        val cached = com.mochyy.mochymusic.ui.theme.SongColorCache.get(thumbUrl)
+                        if (cached != null) {
+                            themeColor = cached.accent
+                            com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongAccent = cached.accent
+                            com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongDockTint = cached.dockTint
+                        } else {
+                            val extracted = withContext(Dispatchers.IO) {
+                                try {
+                                    val result = imageLoader.execute(
+                                        ImageRequest.Builder(this@MainActivity)
+                                            .data(thumbUrl)
+                                            .size(96, 96)
+                                            .allowHardware(false)
+                                            .memoryCachePolicy(CachePolicy.DISABLED)
+                                            .diskCachePolicy(CachePolicy.ENABLED)
+                                            .networkCachePolicy(CachePolicy.ENABLED)
+                                            .crossfade(false)
+                                            .build()
+                                    )
+                                    val bmp = result.image?.toBitmap()
+                                    if (bmp != null) {
+                                        withContext(Dispatchers.Default) {
+                                            com.mochyy.mochymusic.ui.theme.extractSongColorsCompat(bmp)
+                                        }
+                                    } else null
+                                } catch (_: Exception) {
+                                    null
+                                }
+                            }
+                            if (extracted != null) {
+                                com.mochyy.mochymusic.ui.theme.SongColorCache.put(thumbUrl, extracted)
+                                themeColor = extracted.accent
+                                com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongAccent = extracted.accent
+                                com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongDockTint = extracted.dockTint
+                            } else {
                                 themeColor = selectedThemeColor
+                                com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongAccent = null
+                                com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongDockTint = null
                             }
                         }
                     } else {
                         themeColor = selectedThemeColor
+                        com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongAccent = null
+                        com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongDockTint = null
                     }
                     themeSettled = true
                 }
             }
+        }
+
+        // Smoothly glide the app-wide accent color whenever the playing song or accent setting changes
+        val targetActiveAccent = if (com.mochyy.mochymusic.ui.component.UiCustomTheme.dynamicSongAccent) {
+            com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongAccent
+                ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.accentColor
+        } else {
+            com.mochyy.mochymusic.ui.component.UiCustomTheme.accentColor
+        }
+        val smoothActiveAccent by androidx.compose.animation.animateColorAsState(
+            targetValue = targetActiveAccent,
+            animationSpec = tween(durationMillis = 550),
+            label = "dynamicSongAccent",
+        )
+        androidx.compose.runtime.SideEffect {
+            com.mochyy.mochymusic.ui.component.UiCustomTheme.animatedAccentColor = smoothActiveAccent
         }
 
         MochyTheme(
@@ -1575,6 +1621,10 @@ class MainActivity : ComponentActivity() {
                         miniShowVisualizer = prefs[com.mochyy.mochymusic.constants.MiniShowVisualizerKey] ?: true,
                         miniShowProgress = prefs[com.mochyy.mochymusic.constants.MiniShowProgressKey] ?: true,
                         miniWavyProgress = prefs[com.mochyy.mochymusic.constants.MiniWavyProgressKey] ?: true,
+                        dynamicSongAccent = prefs[com.mochyy.mochymusic.constants.DynamicSongAccentKey] ?: true,
+                        dynamicDockColor = prefs[com.mochyy.mochymusic.constants.DynamicDockColorKey] ?: true,
+                        dynamicDockIntensity = prefs[com.mochyy.mochymusic.constants.DynamicDockIntensityKey]
+                            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultDockColorIntensity,
                     )
                 }
                 .distinctUntilChanged()
@@ -1602,6 +1652,9 @@ class MainActivity : ComponentActivity() {
                     com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowVisualizer = look.miniShowVisualizer
                     com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowProgress = look.miniShowProgress
                     com.mochyy.mochymusic.ui.component.UiCustomTheme.miniWavyProgress = look.miniWavyProgress
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.dynamicSongAccent = look.dynamicSongAccent
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.dynamicDockColor = look.dynamicDockColor
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.dockColorIntensity = look.dynamicDockIntensity.coerceIn(0.20f, 0.85f)
                 }
         }
     }
@@ -1627,6 +1680,9 @@ class MainActivity : ComponentActivity() {
         val miniShowVisualizer: Boolean,
         val miniShowProgress: Boolean,
         val miniWavyProgress: Boolean,
+        val dynamicSongAccent: Boolean,
+        val dynamicDockColor: Boolean,
+        val dynamicDockIntensity: Float,
     )
 
     // people who had the old lyrics shader switch off land on the matching shaderless lyric style, once (off main thread)

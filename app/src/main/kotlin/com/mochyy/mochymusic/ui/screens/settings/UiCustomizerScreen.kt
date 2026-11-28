@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,6 +50,9 @@ import com.mochyy.mochymusic.constants.CustomDockCornerKey
 import com.mochyy.mochymusic.constants.CustomGlassOpacityKey
 import com.mochyy.mochymusic.constants.CustomLyricsGlowKey
 import com.mochyy.mochymusic.constants.CustomPlayerCoverCornerKey
+import com.mochyy.mochymusic.constants.DynamicDockColorKey
+import com.mochyy.mochymusic.constants.DynamicDockIntensityKey
+import com.mochyy.mochymusic.constants.DynamicSongAccentKey
 import com.mochyy.mochymusic.constants.MiniShowLikeKey
 import com.mochyy.mochymusic.constants.MiniShowLyricsKey
 import com.mochyy.mochymusic.constants.MiniShowProgressKey
@@ -105,6 +109,10 @@ fun UiCustomizerScreen(navController: NavController) {
     var miniShowVisualizer by rememberPreference(MiniShowVisualizerKey, true)
     var miniShowProgress by rememberPreference(MiniShowProgressKey, true)
     var miniWavyProgress by rememberPreference(MiniWavyProgressKey, true)
+
+    var dynamicSongAccent by rememberPreference(DynamicSongAccentKey, true)
+    var dynamicDockColor by rememberPreference(DynamicDockColorKey, true)
+    var dockColorIntensity by rememberPreference(DynamicDockIntensityKey, UiCustomTheme.DefaultDockColorIntensity)
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -250,12 +258,78 @@ fun UiCustomizerScreen(navController: NavController) {
             ),
         )
 
-        // 2. Accent color
+        // 2. Song color detection & Dock tinting
         SettingsSection(
-            title = "Màu nhấn",
+            title = "Màu theo nhạc & Thanh Dock",
             items = listOf(
+                switchItem(
+                    key = "Dynamic song accent",
+                    title = "Nhận diện màu từ nhạc",
+                    description = "Tự động lấy màu chủ đạo từ ảnh bìa bài đang phát cho màu nhấn giao diện",
+                    icon = painterResource(R.drawable.palette),
+                    checked = dynamicSongAccent,
+                    onCheckedChange = {
+                        dynamicSongAccent = it
+                        UiCustomTheme.dynamicSongAccent = it
+                    },
+                ),
+                switchItem(
+                    key = "Dynamic dock color",
+                    title = "Đổi màu thanh Dock theo nhạc",
+                    description = "Tự động nhuộm màu kính và viền thanh Dock, nút điều hướng, Mini-Player theo bài đang phát",
+                    icon = painterResource(R.drawable.palette),
+                    checked = dynamicDockColor,
+                    onCheckedChange = {
+                        dynamicDockColor = it
+                        UiCustomTheme.dynamicDockColor = it
+                    },
+                ),
                 SettingsItem(
-                    title = { ValueTitle("Màu nhấn giao diện", pickedSwatchName) },
+                    title = { ValueTitle("Độ đậm màu thanh Dock", "${(dockColorIntensity * 100).roundToInt()}%") },
+                    description = {
+                        DefaultPlayerSeekBarSlider(
+                            value = dockColorIntensity.coerceIn(0.20f, 0.85f),
+                            onValueChange = {
+                                dockColorIntensity = it
+                                UiCustomTheme.dockColorIntensity = it
+                            },
+                            valueRange = 0.20f..0.85f,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    },
+                    icon = painterResource(R.drawable.tune),
+                    iconShape = CircleShape,
+                    isVisible = dynamicDockColor,
+                    isSubOption = true,
+                ),
+                SettingsItem(
+                    title = {
+                        val liveColor = UiCustomTheme.detectedSongAccent
+                        val label = if (dynamicSongAccent && liveColor != null) "Đang theo nhạc" else pickedSwatchName
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = "Màu nhấn cố định",
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (dynamicSongAccent && liveColor != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(liveColor),
+                                )
+                                Spacer(Modifier.width(6.dp))
+                            }
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.White.copy(alpha = 0.6f),
+                            )
+                        }
+                    },
                     icon = painterResource(R.drawable.palette),
                     iconShape = CircleShape,
                     description = {
@@ -267,7 +341,7 @@ fun UiCustomizerScreen(navController: NavController) {
                                 .padding(top = 10.dp, bottom = 2.dp),
                         ) {
                             AccentSwatches.forEach { swatch ->
-                                val selected = accentArgb == swatch.argb
+                                val selected = !dynamicSongAccent && accentArgb == swatch.argb
                                 val color = Color(swatch.argb)
                                 Box(
                                     contentAlignment = Alignment.Center,
@@ -282,6 +356,8 @@ fun UiCustomizerScreen(navController: NavController) {
                                             }
                                         )
                                         .clickable {
+                                            dynamicSongAccent = false
+                                            UiCustomTheme.dynamicSongAccent = false
                                             accentArgb = swatch.argb
                                             UiCustomTheme.accentColor = color
                                         }
@@ -471,6 +547,9 @@ fun UiCustomizerScreen(navController: NavController) {
                         miniShowVisualizer = true
                         miniShowProgress = true
                         miniWavyProgress = true
+                        dynamicSongAccent = true
+                        dynamicDockColor = true
+                        dockColorIntensity = UiCustomTheme.DefaultDockColorIntensity
                         if (bgPath.isNotBlank()) {
                             val old = File(bgPath)
                             bgPath = ""
@@ -492,6 +571,9 @@ fun UiCustomizerScreen(navController: NavController) {
                         UiCustomTheme.miniShowVisualizer = true
                         UiCustomTheme.miniShowProgress = true
                         UiCustomTheme.miniWavyProgress = true
+                        UiCustomTheme.dynamicSongAccent = true
+                        UiCustomTheme.dynamicDockColor = true
+                        UiCustomTheme.dockColorIntensity = UiCustomTheme.DefaultDockColorIntensity
                         Toast.makeText(context, "Đã khôi phục giao diện mặc định", Toast.LENGTH_SHORT).show()
                     },
                 ),

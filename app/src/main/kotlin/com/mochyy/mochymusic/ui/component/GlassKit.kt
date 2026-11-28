@@ -228,6 +228,7 @@ object UiCustomTheme {
     const val DefaultPlayerCoverCornerDp: Float = 22f
     const val DefaultBgBlurDp: Float = 8f
     const val DefaultBgDimAlpha: Float = 0.48f
+    const val DefaultDockColorIntensity: Float = 0.52f
 
     var accentColor by mutableStateOf(Color(DefaultAccentArgb))
     var dockCornerDp by mutableFloatStateOf(DefaultDockCornerDp)
@@ -249,6 +250,14 @@ object UiCustomTheme {
     var miniShowVisualizer by mutableStateOf(true)
     var miniShowProgress by mutableStateOf(true)
     var miniWavyProgress by mutableStateOf(true)
+
+    // Song artwork color detection & dynamic dock tinting (all live reactive)
+    var dynamicSongAccent by mutableStateOf(true)
+    var dynamicDockColor by mutableStateOf(true)
+    var dockColorIntensity by mutableFloatStateOf(DefaultDockColorIntensity)
+    var detectedSongAccent by mutableStateOf<Color?>(null)
+    var detectedSongDockTint by mutableStateOf<Color?>(null)
+    var animatedAccentColor by mutableStateOf(Color(DefaultAccentArgb))
 }
 
 /**
@@ -291,9 +300,9 @@ fun CustomUiWallpaperLayer(
     }
 }
 
-/** Dynamic accent color (defaults to Apple Music Coral Red #FA2D48, customizable in UI Customizer). */
+/** Dynamic accent color (follows current song cover when enabled, otherwise the user's picked accent swatch). */
 val AppleMusicAccent: Color
-    get() = UiCustomTheme.accentColor
+    get() = UiCustomTheme.animatedAccentColor
 
 /** Backdrop blur for that chrome, heavier than the 24f default so it reads as properly frosted. */
 const val GlassChromeBlurRadius = 56f
@@ -302,23 +311,33 @@ const val GlassChromeBlurRadius = 56f
 private const val ChromeAccentWash = 0.55f
 
 /**
- * the open page's accent (a coloured playlist or artist) as a wash for the nav pill and the mini
- * player. it eases in and out by itself, and it's only read while drawing: a page change repaints
- * the chrome, never recomposes it
+ * The floating chrome wash for the bottom Dock, Home/Search orbs, and Mini-Player capsule.
+ * When dynamic dock color is enabled and a song is playing, washes the frosted glass with the
+ * song's detected color; otherwise falls back to the open detail page's accent. Read only in
+ * the draw phase so song/page changes repaint smoothly without recomposing the chrome.
  */
 @Composable
 fun rememberChromeAccentWash(): () -> Color {
     val accent = com.mochyy.mochymusic.LocalDetailAccentColor.current
     val wash = remember { androidx.compose.animation.Animatable(Color.Transparent) }
     LaunchedEffect(accent) {
-        // fading out keeps the page's hue instead of greying through transparent black
+        // fading out keeps the previous hue instead of greying through transparent black
         var hue = Color.Black
-        androidx.compose.runtime.snapshotFlow { accent.value }.collect { color ->
+        androidx.compose.runtime.snapshotFlow {
+            val songTint = if (UiCustomTheme.dynamicDockColor) UiCustomTheme.detectedSongDockTint else null
+            val intensity = UiCustomTheme.dockColorIntensity.coerceIn(0.20f, 0.85f)
+            val detailColor = accent.value
+            when {
+                songTint != null -> songTint to intensity
+                detailColor != null -> detailColor to ChromeAccentWash
+                else -> null to 0f
+            }
+        }.collect { (color, targetAlpha) ->
             if (color != null) hue = color
             if (wash.value.alpha == 0f) wash.snapTo(hue.copy(alpha = 0f))
             wash.animateTo(
-                hue.copy(alpha = if (color != null) ChromeAccentWash else 0f),
-                androidx.compose.animation.core.tween(500),
+                hue.copy(alpha = if (color != null) targetAlpha else 0f),
+                androidx.compose.animation.core.tween(550),
             )
         }
     }

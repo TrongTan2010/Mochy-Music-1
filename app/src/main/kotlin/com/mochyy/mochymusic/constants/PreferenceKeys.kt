@@ -1458,3 +1458,8 @@ val MiniSpinCoverKey = booleanPreferencesKey("miniSpinCover")
 val MiniShowVisualizerKey = booleanPreferencesKey("miniShowVisualizer")
 val MiniShowProgressKey = booleanPreferencesKey("miniShowProgress")
 val MiniWavyProgressKey = booleanPreferencesKey("miniWavyProgress")
+
+// Dynamic song artwork color detection & dock tinting keys
+val DynamicSongAccentKey = booleanPreferencesKey("dynamicSongAccent")
+val DynamicDockColorKey = booleanPreferencesKey("dynamicDockColor")
+val DynamicDockIntensityKey = floatPreferencesKey("dynamicDockIntensity")

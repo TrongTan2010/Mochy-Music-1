@@ -117,6 +117,73 @@ fun Bitmap.extractThemeColor(): Color {
     return Color(rankedColors.first())
 }
 
+/**
+ * Harmonious pair of colors extracted from a playing song's cover art:
+ * - [accent]: vivid, readable highlight for active dock icons, progress bar, and buttons on dark surfaces.
+ * - [dockTint]: deep atmospheric glass tint for the bottom Dock, Home/Search orbs, and Mini-Player capsule.
+ */
+data class SongArtworkColors(
+    val accent: Color,
+    val dockTint: Color,
+)
+
+object SongColorCache {
+    private val cache = android.util.LruCache<String, SongArtworkColors>(64)
+
+    fun get(url: String?): SongArtworkColors? = url?.let { cache.get(it) }
+
+    fun put(url: String, colors: SongArtworkColors) {
+        cache.put(url, colors)
+    }
+}
+
+fun Bitmap.extractSongColors(): SongArtworkColors {
+    val palette = Palette.from(this)
+        .maximumColorCount(16)
+        .generate()
+    val swatches = palette.swatches.associate { it.rgb to it.population }
+    val scored = if (swatches.isNotEmpty()) Score.score(swatches).firstOrNull() else null
+
+    val rawAccent = palette.vibrantSwatch?.rgb
+        ?: palette.lightVibrantSwatch?.rgb
+        ?: scored
+        ?: palette.dominantSwatch?.rgb
+        ?: 0xFFFA2D48.toInt()
+
+    val rawDock = palette.darkVibrantSwatch?.rgb
+        ?: palette.vibrantSwatch?.rgb
+        ?: palette.dominantSwatch?.rgb
+        ?: rawAccent
+
+    val accentHsl = FloatArray(3)
+    androidx.core.graphics.ColorUtils.colorToHSL(rawAccent, accentHsl)
+    if (accentHsl[1] < 0.08f) {
+        // Monochrome cover: crisp silver-white accent instead of dull grey
+        accentHsl[1] = 0.04f
+        accentHsl[2] = 0.86f
+    } else {
+        accentHsl[1] = accentHsl[1].coerceIn(0.56f, 0.92f)
+        accentHsl[2] = accentHsl[2].coerceIn(0.56f, 0.72f)
+    }
+    val vividAccent = Color(androidx.core.graphics.ColorUtils.HSLToColor(accentHsl))
+
+    val dockHsl = FloatArray(3)
+    androidx.core.graphics.ColorUtils.colorToHSL(rawDock, dockHsl)
+    if (dockHsl[1] < 0.08f) {
+        dockHsl[1] = 0.06f
+        dockHsl[2] = 0.22f
+    } else {
+        // Keep dock hue harmonious with the artwork, rich enough to tint frosted glass clearly without washing out white text
+        dockHsl[1] = (dockHsl[1] * 0.95f).coerceIn(0.45f, 0.80f)
+        dockHsl[2] = dockHsl[2].coerceIn(0.20f, 0.36f)
+    }
+    val richDockTint = Color(androidx.core.graphics.ColorUtils.HSLToColor(dockHsl))
+
+    return SongArtworkColors(accent = vividAccent, dockTint = richDockTint)
+}
+
+fun extractSongColorsCompat(bitmap: Bitmap): SongArtworkColors = bitmap.extractSongColors()
+
 fun Bitmap.extractGradientColors(): List<Color> {
     val extractedColors = Palette.from(this)
         .maximumColorCount(64)

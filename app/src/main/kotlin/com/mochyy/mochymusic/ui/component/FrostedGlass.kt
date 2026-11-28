@@ -187,12 +187,25 @@ fun DrawScope.drawChromeOutline(
     alpha: Float = 1f,
 ) {
     val half = ChromeOutlineWidthPx / 2f
+    val outlineTopLeft = Offset(topLeft.x + half, topLeft.y + half)
+    val outlineSize = Size(size.width - ChromeOutlineWidthPx, size.height - ChromeOutlineWidthPx)
+    val outlineCorner = CornerRadius((cornerRadius - half).coerceAtLeast(0f))
     drawRoundRect(
         brush = ChromeOutlineBrush,
-        topLeft = Offset(topLeft.x + half, topLeft.y + half),
-        size = Size(size.width - ChromeOutlineWidthPx, size.height - ChromeOutlineWidthPx),
-        cornerRadius = CornerRadius((cornerRadius - half).coerceAtLeast(0f)),
+        topLeft = outlineTopLeft,
+        size = outlineSize,
+        cornerRadius = outlineCorner,
         style = ChromeOutlineStroke,
         alpha = alpha,
     )
+    if (UiCustomTheme.dynamicDockColor && UiCustomTheme.detectedSongDockTint != null) {
+        val rimAlpha = (0.34f * UiCustomTheme.dockColorIntensity.coerceIn(0.20f, 0.85f) * alpha).coerceIn(0f, 0.42f)
+        drawRoundRect(
+            color = UiCustomTheme.animatedAccentColor.copy(alpha = rimAlpha),
+            topLeft = outlineTopLeft,
+            size = outlineSize,
+            cornerRadius = outlineCorner,
+            style = ChromeOutlineStroke,
+        )
+    }
 }
