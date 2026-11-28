@@ -125,31 +125,31 @@ object LaunchGate {
     }
 }
 
-// Snappy cold-start launch intro timings so the app opens rapidly without multi-second stalls
-private const val FlightMillis = 260
-private val MoveEasing = CubicBezierEasing(0.55f, 0f, 0.1f, 1f)
-private val ScaleEasing = CubicBezierEasing(0.45f, 0f, 0.1f, 1f)
+// Fluid flagship launch-to-Home transition timings (fast, cinematic, zero abrupt snap)
+private const val FlightMillis = 460
+private val MoveEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
+private val ScaleEasing = CubicBezierEasing(0.20f, 1f, 0.32f, 1f)
 
-// the skeleton: each piece rises a little after the one above it
-private const val RiseDelayMillis = 20
-private const val RiseMillis = 220
-private const val RiseStaggerMillis = 25
+// Staggered depth cascade: Top Bar -> Hero -> Shelves -> Bottom Dock & Mini-Player
+private const val RiseDelayMillis = 40
+private const val RiseMillis = 420
+private const val RiseStaggerMillis = 55
 private const val RiseOrders = 4
 private const val RiseTotalMillis = RiseMillis + (RiseOrders - 1) * RiseStaggerMillis
-private val RiseEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-private val RiseDistance = 42.dp
+private val RiseEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+private val RiseDistance = 28.dp
 
-// Short caps so Home appears immediately instead of holding a black splash for seconds
-private const val EssentialsTimeoutMillis = 320L
+// Short cap so Home lays out cleanly for exact logo landing without stalling startup
+private const val EssentialsTimeoutMillis = 480L
 
 // the splash steps aside once the first frame is up; a launch with no splash at all moves on after this
-private const val SplashTimeoutMillis = 200L
+private const val SplashTimeoutMillis = 240L
 
-// blur through the middle of the morph, in the mark's own units (it scales with the mark)
-private const val BlurPeak = 8f
+// soft motion blur through the middle of the curved flight
+private const val BlurPeak = 5.5f
 
 // the anime icon bouncing out into the mark, ripple and all
-private const val PreludeMillis = 240
+private const val PreludeMillis = 280
 
 // an adaptive icon on the splash: its 108dp layers drawn at 240dp, shown through a 160dp circle
 private const val IconLayerSize = 240f / 288f * 235f
@@ -231,7 +231,10 @@ fun Modifier.launchRise(order: Int, distance: Dp = RiseDistance): Modifier {
     if (state.done) return this
     return graphicsLayer {
         val e = state.riseAt(order)
+        val scale = 0.965f + 0.035f * e
         alpha = e
+        scaleX = scale
+        scaleY = scale
         translationY = (1f - e) * distance.toPx()
         // faded per draw rather than through a buffer: some of these pieces are screen-sized
         compositingStrategy = CompositingStrategy.ModulateAlpha
@@ -345,8 +348,39 @@ fun LaunchIntroOverlay(state: LaunchIntroState, essentialsReady: Boolean) {
                     }
                 }
                 .drawBehind {
-                    val backdrop = 1f - smoothstep(0.18f, 0.7f, state.flight.value)
-                    if (backdrop > 0f) drawRect(Color.Black.copy(alpha = backdrop))
+                    val f = state.flight.value
+                    val backdrop = 1f - smoothstep(0.10f, 0.78f, f)
+                    if (backdrop > 0f) {
+                        drawRect(Color.Black.copy(alpha = backdrop))
+                        // Subtle breathing radial accent aura behind the centered brand mark, expanding as it lifts off
+                        val accent = com.mochyy.mochymusic.ui.component.AppleMusicAccent
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val auraR = min(size.width, size.height) * (0.42f + 0.34f * f)
+                        drawCircle(
+                            brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                0f to accent.copy(alpha = 0.24f * backdrop),
+                                0.55f to accent.copy(alpha = 0.07f * backdrop),
+                                1f to Color.Transparent,
+                                center = center,
+                                radius = auraR,
+                            ),
+                            radius = auraR,
+                            center = center,
+                        )
+                    }
+                    // Clean Material 3 pulse ring radiating out as the logo launches toward Home
+                    if (f > 0.01f && f < 0.72f) {
+                        val rp = (f / 0.72f).coerceIn(0f, 1f)
+                        val easeRp = 1f - (1f - rp) * (1f - rp)
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val ringR = min(size.width, size.height) * (0.14f + 0.38f * easeRp)
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.22f * (1f - rp) * (1f - rp)),
+                            radius = ringR,
+                            center = center,
+                            style = Stroke(width = (3.5f * (1f - rp) + 1f).dp.toPx()),
+                        )
+                    }
                 }
         )
 
@@ -455,7 +489,10 @@ private fun Density.placementAt(state: LaunchIntroState, size: IntSize): MarkPla
     }
 
     val unit = startUnit * (endUnit / startUnit).pow(ScaleEasing.transform(t))
-    val pivot = lerp(startOrigin + Pivot * startUnit, endOrigin + Pivot * endUnit, MoveEasing.transform(t))
+    val basePivot = lerp(startOrigin + Pivot * startUnit, endOrigin + Pivot * endUnit, MoveEasing.transform(t))
+    // Gentle outward arc during the flight so the mark sweeps organically into Home's top bar
+    val arcLift = Offset(-18.dp.toPx() * bell(t), 10.dp.toPx() * bell(t))
+    val pivot = basePivot + arcLift
     return MarkPlacement(origin = pivot - Pivot * unit, unit = unit)
 }
 

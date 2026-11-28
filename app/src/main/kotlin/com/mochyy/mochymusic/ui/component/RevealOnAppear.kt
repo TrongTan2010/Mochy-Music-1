@@ -41,16 +41,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
 
-private val RevealEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-private const val BonesFadeOutMs = 280
-private const val RevealGapMs = 120
-private const val RevealFadeInMs = 520
-private val RevealSlideDistance = 20.dp
-private const val BonesWaveMs = 2000
+private val RevealEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+private const val BonesFadeOutMs = 200
+private const val RevealGapMs = 0
+private const val RevealFadeInMs = 460
+private val RevealSlideDistance = 22.dp
+private const val BonesWaveMs = 1450
 
 // reveals that start together (a whole page of rows landing at once) go one after another
 private const val BurstWindowMs = 120L
-private const val BurstStepMs = 60
+private const val BurstStepMs = 48
 private const val BurstMaxSteps = 6
 
 /** colour of a loading bone, before the wave modulates it */
@@ -112,10 +112,10 @@ fun <T : Any> RevealWhenLoaded(
         contentKey = { it != null },
         transitionSpec = {
             if (targetState != null) {
-                val delay = BonesFadeOutMs + RevealGapMs
+                val delay = RevealGapMs
                 (fadeIn(tween(RevealFadeInMs, delayMillis = delay, easing = RevealEasing)) +
                     slideInVertically(tween(RevealFadeInMs, delayMillis = delay, easing = RevealEasing)) { slidePx })
-                    .togetherWith(fadeOut(tween(BonesFadeOutMs)))
+                    .togetherWith(fadeOut(tween(BonesFadeOutMs, easing = RevealEasing)))
                     .using(SizeTransform(clip = false))
             } else {
                 fadeIn(tween(BonesFadeOutMs))
@@ -158,7 +158,10 @@ fun Modifier.revealOnAppear(
     val slidePx = with(LocalDensity.current) { RevealSlideDistance.toPx() }
     return graphicsLayer {
         val p = progress.value
+        val s = 0.97f + 0.03f * p
         alpha = p
+        scaleX = s
+        scaleY = s
         translationY = (1f - p) * slidePx
         // faded per draw: as a buffer every revealing card was a gpu layer of its own for half a second, dozens at once in a fling
         compositingStrategy = CompositingStrategy.ModulateAlpha
@@ -166,8 +169,8 @@ fun Modifier.revealOnAppear(
 }
 
 /**
- * hosts loading bones and runs one soft opacity wave down through them. the wave is read in the
- * draw pass only, so nothing recomposes while it loops.
+ * hosts loading bones and runs a sleek diagonal glass shimmer wave across them.
+ * read in the draw pass only, so nothing recomposes while it loops.
  */
 @Composable
 fun BonesHost(
@@ -189,16 +192,18 @@ fun BonesHost(
             .damageBoundary()
             .drawWithContent {
                 drawContent()
+                val w = size.width
                 val h = size.height
-                val band = h * 0.8f + 1f
-                val center = -band + phase.value * (h + band * 2f)
+                val span = w + h
+                val band = span * 0.38f + 1f
+                val travel = -band + phase.value * (span + band * 2f)
                 drawRect(
-                    brush = Brush.verticalGradient(
-                        0f to Color.Black.copy(alpha = 0.45f),
+                    brush = Brush.linearGradient(
+                        0f to Color.Black.copy(alpha = 0.38f),
                         0.5f to Color.Black,
-                        1f to Color.Black.copy(alpha = 0.45f),
-                        startY = center - band,
-                        endY = center + band,
+                        1f to Color.Black.copy(alpha = 0.38f),
+                        start = androidx.compose.ui.geometry.Offset(travel - band * 0.6f, travel - band * 0.6f),
+                        end = androidx.compose.ui.geometry.Offset(travel + band * 0.6f, travel + band * 0.6f),
                     ),
                     blendMode = BlendMode.DstIn,
                 )
