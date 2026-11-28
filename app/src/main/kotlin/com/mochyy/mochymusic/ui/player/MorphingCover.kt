@@ -66,6 +66,9 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
@@ -359,21 +362,28 @@ private fun Modifier.morphLayout(
             val threeSlot = endpointsPx.compactThreeSlot()
             // When collapsed into 3 slots (Home + Music + Search), Play glides into the Skip slot for spacious text room
             val baseMiniPlayX = lerpF(endpointsPx.miniPlayXPx, endpointsPx.miniSkipXPx, threeSlot) - endShift
-            val playX = lerpF(baseMiniPlayX, endpointsPx.fullPlayXPx, p)
-            val playY = lerpF(endpointsPx.miniPlayYPx, endpointsPx.fullPlayYPx, p)
-            floatArrayOf(playX, playY, -1f, -1f)
+            val playCenterX = lerpF(baseMiniPlayX + 18f * endpointsPx.dpPx, endpointsPx.fullPlayXPx + 18f * endpointsPx.dpPx, p)
+            val playCenterY = lerpF(endpointsPx.miniHeightPx / 2f, endpointsPx.fullPlayYPx + 18f * endpointsPx.dpPx, p)
+            // Generous full-height hit target (44dp normal, 56dp in 3-slot collapsed mode) so Play/Pause is effortless to tap
+            val hitW = lerpF(44f * endpointsPx.dpPx, 56f * endpointsPx.dpPx, threeSlot)
+            val hitH = endpointsPx.miniHeightPx
+            floatArrayOf(playCenterX - hitW / 2f, playCenterY - hitH / 2f, hitW, hitH)
         }
         MorphElement.SKIP -> {
             val endShift = endpointsPx.dockEndShiftPx()
-            val skipX = lerpF(endpointsPx.miniSkipXPx - endShift, endpointsPx.fullPlayXPx + 80f, p)
-            val skipY = lerpF(endpointsPx.miniSkipYPx, endpointsPx.fullPlayYPx, p)
-            floatArrayOf(skipX, skipY, -1f, -1f)
+            val skipCenterX = lerpF(endpointsPx.miniSkipXPx - endShift + 18f * endpointsPx.dpPx, endpointsPx.fullPlayXPx + 98f * endpointsPx.dpPx, p)
+            val skipCenterY = lerpF(endpointsPx.miniHeightPx / 2f, endpointsPx.fullPlayYPx + 18f * endpointsPx.dpPx, p)
+            val hitW = 44f * endpointsPx.dpPx
+            val hitH = endpointsPx.miniHeightPx
+            floatArrayOf(skipCenterX - hitW / 2f, skipCenterY - hitH / 2f, hitW, hitH)
         }
         MorphElement.PREVIOUS -> {
             val endShift = endpointsPx.dockEndShiftPx()
-            val previousX = lerpF(endpointsPx.miniPrevXPx - endShift, endpointsPx.fullPlayXPx - 80f, p)
-            val previousY = lerpF(endpointsPx.miniSkipYPx, endpointsPx.fullPlayYPx, p)
-            floatArrayOf(previousX, previousY, -1f, -1f)
+            val prevCenterX = lerpF(endpointsPx.miniPrevXPx - endShift + 18f * endpointsPx.dpPx, endpointsPx.fullPlayXPx - 62f * endpointsPx.dpPx, p)
+            val prevCenterY = lerpF(endpointsPx.miniHeightPx / 2f, endpointsPx.fullPlayYPx + 18f * endpointsPx.dpPx, p)
+            val hitW = 42f * endpointsPx.dpPx
+            val hitH = endpointsPx.miniHeightPx
+            floatArrayOf(prevCenterX - hitW / 2f, prevCenterY - hitH / 2f, hitW, hitH)
         }
         MorphElement.TEXT -> {
             val shift = endpointsPx.dockShiftPx()
@@ -761,6 +771,17 @@ fun MorphingCover(
             pureBlack = pureBlack,
         )
 
+        if (!pillFrame.merged) {
+            MiniPlayerBackgroundWaves(
+                progressProvider = progressProvider,
+                dockShiftPx = endpointsPx.dockShiftPx,
+                dockEndShiftPx = endpointsPx.dockEndShiftPx,
+                fullWidthPx = endpointsPx.fullWidthPx,
+                pillFrame = pillFrame,
+                isPlaying = isPlaying,
+            )
+        }
+
         // a look's own mini player draws in the pill in place of mochy's words and buttons; the cover stays mochy's, so it still grows into the player
         val moduleMini = com.mochyy.mochymusic.modules.skin.ActiveSkin.mini?.takeIf { !pillFrame.merged }
         if (moduleMini != null) {
@@ -892,6 +913,17 @@ fun MorphingCover(
         // where the style itself shows. It stays composed above that, at alpha 0: built at 42% it was
         // a heavy frame in the middle of every close, and dropped there in the middle of every open.
         if (trackInfo.thumbnailUrl != null || isDiscStyle) {
+            if (!pillFrame.merged) {
+                MiniCoverSonicRipples(
+                    progressProvider = progressProvider,
+                    centerProvider = {
+                        val rect = endpointsPx.artRect(progressProvider(), horizontalOffsetProvider(), lyricsProgressProvider())
+                        Offset(rect[0] + rect[2] / 2f, rect[1] + rect[3] / 2f)
+                    },
+                    baseRadiusPx = endpointsPx.miniArtHeightPx / 2f,
+                    isPlaying = isPlaying,
+                )
+            }
             Box(
                 modifier = Modifier
                     .morphLayout(
@@ -1248,96 +1280,110 @@ fun MorphingCover(
             )
 
             if (!pillFrame.merged) {
-                MiniPlayerProgressLine(
+                MiniWavyProgressBar(
                     progressProvider = progressProvider,
                     pillFrame = pillFrame,
+                    isPlaying = isPlaying,
                 )
             }
 
             if (pillFrame.withPrevious) {
                 MiniPreviousButton(progressProvider = progressProvider, endpointsPx = endpointsPx, size = miniPlaySize)
             } else if (miniShowLike) {
-                MiniLikeButton(
-                    progressProvider = progressProvider,
-                    endpointsPx = endpointsPx,
-                    size = miniPlaySize,
-                    dockCollapse = dockCollapse,
-                )
+                val showLikeSlot by remember {
+                    derivedStateOf { progressProvider() < 0.45f && dockCollapse() < 0.45f }
+                }
+                if (showLikeSlot) {
+                    MiniLikeButton(
+                        progressProvider = progressProvider,
+                        endpointsPx = endpointsPx,
+                        size = miniPlaySize,
+                        dockCollapse = dockCollapse,
+                    )
+                }
             }
 
-            Box(
-                modifier = Modifier
-                    .morphLayout(
-                        progressProvider = progressProvider,
-                        horizontalOffsetProvider = { 0f },
-                        endpointsPx = endpointsPx,
-                        element = MorphElement.PLAY,
-                    )
-                    .requiredSize(miniPlaySize)
-                    .graphicsLayer {
-                        val p = progressProvider()
-                        val playScale = 1f + (p * 1.0f)
-                        scaleX = playScale
-                        scaleY = playScale
-                        transformOrigin = TransformOrigin(0.5f, 0.5f)
-                        alpha = (1f - (p / 0.5f)).coerceIn(0f, 1f)
-                    }
-            ) {
-                MiniPlayerButton(onClick = { playerConnection?.togglePlayPause() }) {
-                    val tint = MaterialTheme.colorScheme.onSurface
-                    // replay pops in for a finished song; play and pause swap with the flagship's squash
-                    AnimatedContent(
-                        targetState = playbackState == Player.STATE_ENDED,
-                        transitionSpec = { MiniIconSwap },
-                        contentAlignment = Alignment.Center,
-                        label = "miniPlayerIcon",
-                    ) { ended ->
-                        if (ended) {
-                            Icon(painter = painterResource(R.drawable.replay), contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-                        } else {
-                            AnimatedPlayGlyph(playing = isPlaying, color = tint, height = MiniPlayHeight)
+            // Skip button is ONLY composed when NOT hidden in 3-slot collapsed mode, so it NEVER overlaps or steals taps from Play/Pause
+            val showSkipSlot by remember {
+                derivedStateOf { progressProvider() < 0.48f && endpointsPx.compactThreeSlot() < 0.45f }
+            }
+            if (showSkipSlot) {
+                Box(
+                    modifier = Modifier
+                        .morphLayout(
+                            progressProvider = progressProvider,
+                            horizontalOffsetProvider = { 0f },
+                            endpointsPx = endpointsPx,
+                            element = MorphElement.SKIP,
+                        )
+                        .graphicsLayer {
+                            val p = progressProvider()
+                            val hideForThreeSlot = (1f - endpointsPx.compactThreeSlot() * 2.2f).coerceIn(0f, 1f)
+                            val playScale = (1f + (p * 1.0f)) * (0.7f + 0.3f * hideForThreeSlot)
+                            scaleX = playScale
+                            scaleY = playScale
+                            transformOrigin = TransformOrigin(0.5f, 0.5f)
+                            alpha = (1f - (p / 0.5f)).coerceIn(0f, 1f) * hideForThreeSlot
                         }
+                ) {
+                    val skipScope = rememberCoroutineScope()
+                    val skipCycle = remember { SkipCycleState() }
+                    MiniPlayerButton(
+                        onClick = {
+                            skipScope.launch { skipCycle.step() }
+                            playerConnection?.let { connection ->
+                                // through the same skip as every other button (its fade, the cast), with the row gliding first so the song change can't make it stutter
+                                val row = currentCarousel
+                                if (row == null) {
+                                    connection.seekToNext()
+                                } else {
+                                    row.skipToNext(connection.player, connection.service.transport.skipDelayMs()) { connection.seekToNext() }
+                                }
+                            }
+                        },
+                    ) {
+                        AnimatedSkipGlyph(cycle = skipCycle, backwards = false, color = MaterialTheme.colorScheme.onSurface, width = MiniSkipWidth)
                     }
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .morphLayout(
-                        progressProvider = progressProvider,
-                        horizontalOffsetProvider = { 0f },
-                        endpointsPx = endpointsPx,
-                        element = MorphElement.SKIP,
-                    )
-                    .requiredSize(miniPlaySize)
-                    .graphicsLayer {
-                        val p = progressProvider()
-                        val hideForThreeSlot = (1f - endpointsPx.compactThreeSlot() * 2.2f).coerceIn(0f, 1f)
-                        val playScale = (1f + (p * 1.0f)) * (0.7f + 0.3f * hideForThreeSlot)
-                        scaleX = playScale
-                        scaleY = playScale
-                        transformOrigin = TransformOrigin(0.5f, 0.5f)
-                        alpha = (1f - (p / 0.5f)).coerceIn(0f, 1f) * hideForThreeSlot
-                    }
-            ) {
-                val skipScope = rememberCoroutineScope()
-                val skipCycle = remember { SkipCycleState() }
-                MiniPlayerButton(
-                    onClick = {
-                        if (endpointsPx.compactThreeSlot() > 0.45f) return@MiniPlayerButton
-                        skipScope.launch { skipCycle.step() }
-                        playerConnection?.let { connection ->
-                            // through the same skip as every other button (its fade, the cast), with the row gliding first so the song change can't make it stutter
-                            val row = currentCarousel
-                            if (row == null) {
-                                connection.seekToNext()
+            // Play/Pause button placed LAST on highest zIndex with generous full-capsule-height touch hitbox
+            val showPlaySlot by remember { derivedStateOf { progressProvider() < 0.5f } }
+            if (showPlaySlot) {
+                Box(
+                    modifier = Modifier
+                        .zIndex(5f)
+                        .morphLayout(
+                            progressProvider = progressProvider,
+                            horizontalOffsetProvider = { 0f },
+                            endpointsPx = endpointsPx,
+                            element = MorphElement.PLAY,
+                        )
+                        .graphicsLayer {
+                            val p = progressProvider()
+                            val playScale = 1f + (p * 1.0f)
+                            scaleX = playScale
+                            scaleY = playScale
+                            transformOrigin = TransformOrigin(0.5f, 0.5f)
+                            alpha = (1f - (p / 0.5f)).coerceIn(0f, 1f)
+                        }
+                ) {
+                    MiniPlayerButton(onClick = { playerConnection?.togglePlayPause() }) {
+                        val tint = MaterialTheme.colorScheme.onSurface
+                        // replay pops in for a finished song; play and pause swap with the flagship's squash
+                        AnimatedContent(
+                            targetState = playbackState == Player.STATE_ENDED,
+                            transitionSpec = { MiniIconSwap },
+                            contentAlignment = Alignment.Center,
+                            label = "miniPlayerIcon",
+                        ) { ended ->
+                            if (ended) {
+                                Icon(painter = painterResource(R.drawable.replay), contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
                             } else {
-                                row.skipToNext(connection.player, connection.service.transport.skipDelayMs()) { connection.seekToNext() }
+                                AnimatedPlayGlyph(playing = isPlaying, color = tint, height = MiniPlayHeight)
                             }
                         }
-                    },
-                ) {
-                    AnimatedSkipGlyph(cycle = skipCycle, backwards = false, color = MaterialTheme.colorScheme.onSurface, width = MiniSkipWidth)
+                    }
                 }
             }
         }
@@ -1358,7 +1404,6 @@ private fun MiniPreviousButton(progressProvider: () -> Float, endpointsPx: Morph
                 endpointsPx = endpointsPx,
                 element = MorphElement.PREVIOUS,
             )
-            .requiredSize(size)
             .graphicsLayer {
                 val p = progressProvider()
                 val scale = 1f + p
@@ -1384,8 +1429,8 @@ private fun MiniPreviousButton(progressProvider: () -> Float, endpointsPx: Morph
  */
 private val MiniButtonHighlight = RoundedHighlight(
     cornerRadius = 22.dp,
-    spillX = 4.dp,
-    spillY = 4.dp,
+    spillX = 2.dp,
+    spillY = 0.dp,
     color = ChromeHighlightColor,
 )
 
@@ -1397,13 +1442,15 @@ private val MiniSkipWidth = 19.dp
 private val MiniIconSwap = (fadeIn(tween(160)) + scaleIn(tween(220, easing = FastOutSlowInEasing), initialScale = 0.6f)) togetherWith
     (fadeOut(tween(120)) + scaleOut(tween(160), targetScale = 0.6f))
 
-// one of the mini player's buttons: a round highlight comes up under the finger and the button squishes with it
+// one of the mini player's buttons: generous hit target, tactile haptic feedback, round highlight & shockwave ring on tap
 @Composable
 private fun MiniPlayerButton(
     onClick: () -> Unit,
     icon: @Composable () -> Unit,
 ) {
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val haptic = LocalHapticFeedback.current
+    var wavePulse by remember { mutableIntStateOf(0) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1411,10 +1458,15 @@ private fun MiniPlayerButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = MiniButtonHighlight,
-                onClick = onClick,
+                onClick = {
+                    wavePulse++
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClick()
+                },
             ),
         contentAlignment = Alignment.Center,
     ) {
+        MiniButtonWaveOverlay(triggerCount = wavePulse)
         icon()
     }
 }
@@ -1504,7 +1556,6 @@ private fun MiniLikeButton(
                 endpointsPx = endpointsPx,
                 element = MorphElement.PREVIOUS,
             )
-            .requiredSize(size)
             .graphicsLayer {
                 val p = progressProvider()
                 val collapseHide = (1f - dockCollapse().coerceIn(0f, 1f) * 2.4f).coerceIn(0f, 1f)
@@ -1551,7 +1602,7 @@ private fun MiniSongLines(
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (isActiveSlot && showVisualizer) {
-                MiniAudioVisualizerBars()
+                MiniWaveEqualizerBars()
             }
             Text(
                 text = title,
@@ -1574,51 +1625,6 @@ private fun MiniSongLines(
                 color = Color.White.copy(alpha = 0.65f),
                 maxLines = 1,
                 softWrap = false,
-            )
-        }
-    }
-}
-
-/** 3-bar dancing Apple Music equalizer indicator inside the Mini-Player. */
-@Composable
-private fun MiniAudioVisualizerBars() {
-    val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
-    val phase = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
-    LaunchedEffect(isPlaying) {
-        if (!isPlaying) return@LaunchedEffect
-        var lastNs = 0L
-        while (true) {
-            androidx.compose.runtime.withFrameNanos { now ->
-                if (lastNs != 0L) {
-                    phase.floatValue = (phase.floatValue + (now - lastNs) / 1_000_000_000f * 6.5f) % 62.83185f
-                }
-                lastNs = now
-            }
-        }
-    }
-    val accent = com.mochyy.mochymusic.ui.component.AppleMusicAccent
-    androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 11.dp, height = 11.dp)) {
-        val barW = 2.2.dp.toPx()
-        val gap = (size.width - barW * 3f) / 2f
-        val p = phase.floatValue
-        val heights = if (isPlaying) {
-            floatArrayOf(
-                0.35f + 0.62f * kotlin.math.abs(kotlin.math.sin(p)),
-                0.30f + 0.70f * kotlin.math.abs(kotlin.math.sin(p * 1.25f + 1.4f)),
-                0.35f + 0.58f * kotlin.math.abs(kotlin.math.sin(p * 0.9f + 2.7f)),
-            )
-        } else {
-            floatArrayOf(0.28f, 0.45f, 0.28f)
-        }
-        for (i in 0..2) {
-            val h = (size.height * heights[i]).coerceAtLeast(barW)
-            val x = i * (barW + gap)
-            drawRoundRect(
-                color = if (isPlaying) accent else Color.White.copy(alpha = 0.45f),
-                topLeft = Offset(x, size.height - h),
-                size = androidx.compose.ui.geometry.Size(barW, h),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(barW / 2f, barW / 2f),
             )
         }
     }
@@ -1656,88 +1662,6 @@ private fun MiniLiveLyricsSubtitle(fallbackSubtitle: String) {
             maxLines = 1,
             softWrap = false,
         )
-    }
-}
-
-/**
- * Luminous Apple Music progress bar hugging the bottom inner curve of the floating MiniPlayer capsule
- * with an accent gradient tail and subtle glowing playhead spark.
- */
-@Composable
-private fun MiniPlayerProgressLine(
-    progressProvider: () -> Float,
-    pillFrame: com.mochyy.mochymusic.ui.component.MiniPillFrame,
-) {
-    if (!com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowProgress) return
-    val playerConnection = LocalPlayerConnection.current ?: return
-    val visible by remember { derivedStateOf { progressProvider() < 0.25f } }
-    if (!visible) return
-    val progressState by playerConnection.uiState.progressState.collectAsState()
-    val fraction = if (progressState.duration > 0L) {
-        (progressState.position.toFloat() / progressState.duration.toFloat()).coerceIn(0f, 1f)
-    } else 0f
-
-    val accent = com.mochyy.mochymusic.ui.component.AppleMusicAccent
-    val dockCollapse = com.mochyy.mochymusic.ui.component.LocalDockCollapseProgress.current
-    val showCollapsedSearch = com.mochyy.mochymusic.ui.component.LocalDockCollapsedSearchEnabled.current
-    androidx.compose.foundation.Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(pillFrame.height)
-            .graphicsLayer {
-                alpha = (1f - progressProvider() / 0.25f).coerceIn(0f, 1f)
-            }
-    ) {
-        val c = dockCollapse().coerceIn(0f, 1f)
-        val extraStart = if (pillFrame.merged) 0f else {
-            com.mochyy.mochymusic.ui.component.DockOrbClearance.toPx() * c
-        }
-        val extraEnd = if (pillFrame.merged || !showCollapsedSearch) 0f else {
-            com.mochyy.mochymusic.ui.component.DockOrbClearance.toPx() * c
-        }
-        val leftInset = (pillFrame.start + 28.dp).toPx() + extraStart
-        val rightInset = (pillFrame.end + 28.dp).toPx() + extraEnd
-        val barWidth = (size.width - leftInset - rightInset).coerceAtLeast(0f)
-        if (barWidth <= 0f) return@Canvas
-        val barHeight = 2.4.dp.toPx()
-        val barTop = size.height - barHeight - 2.5.dp.toPx()
-        val cr = androidx.compose.ui.geometry.CornerRadius(barHeight / 2f, barHeight / 2f)
-
-        drawRoundRect(
-            color = Color.White.copy(alpha = 0.14f),
-            topLeft = Offset(leftInset, barTop),
-            size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
-            cornerRadius = cr,
-        )
-        if (fraction > 0.001f) {
-            val fillW = barWidth * fraction
-            drawRoundRect(
-                brush = Brush.horizontalGradient(
-                    0f to accent.copy(alpha = 0.72f),
-                    0.82f to accent,
-                    1f to Color.White.copy(alpha = 0.95f),
-                    startX = leftInset,
-                    endX = leftInset + fillW,
-                ),
-                topLeft = Offset(leftInset, barTop),
-                size = androidx.compose.ui.geometry.Size(fillW, barHeight),
-                cornerRadius = cr,
-            )
-            // Soft luminous glow tip at the active playhead
-            val tipCenter = Offset(leftInset + fillW, barTop + barHeight / 2f)
-            val glowR = 5.5.dp.toPx()
-            drawCircle(
-                brush = Brush.radialGradient(
-                    0f to Color.White.copy(alpha = 0.85f),
-                    0.45f to accent.copy(alpha = 0.50f),
-                    1f to Color.Transparent,
-                    center = tipCenter,
-                    radius = glowR,
-                ),
-                radius = glowR,
-                center = tipCenter,
-            )
-        }
     }
 }
 
@@ -2315,6 +2239,20 @@ private fun SheetBackdrop(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(TurntableDim)
+                )
+            }
+            val playerConn = LocalPlayerConnection.current
+            val wavePlaying = playerConn?.isEffectivelyPlaying?.collectAsState()?.value == true
+            val waveVisible by remember { derivedStateOf { progressProvider() > 0.35f && lyricsProgressProvider() < 0.5f } }
+            if (waveVisible) {
+                FullPlayerAuroraWaves(
+                    isPlaying = wavePlaying,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            alpha = ((progressProvider() - 0.35f) / 0.45f).coerceIn(0f, 1f) *
+                                (1f - lyricsProgressProvider() * 2f).coerceIn(0f, 1f)
+                        },
                 )
             }
         }

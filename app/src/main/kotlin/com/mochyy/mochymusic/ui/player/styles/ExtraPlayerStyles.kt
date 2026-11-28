@@ -118,6 +118,13 @@ private fun StyleBackdropWithWallpaper(
                 .fillMaxSize()
                 .background(darkScrim),
         )
+        val conn = LocalPlayerConnection.current
+        val wavePlaying = conn?.isEffectivelyPlaying?.collectAsState()?.value == true
+        com.mochyy.mochymusic.ui.player.FullPlayerAuroraWaves(
+            isPlaying = wavePlaying,
+            preview = preview,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
 

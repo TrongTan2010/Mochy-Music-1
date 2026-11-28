@@ -248,6 +248,16 @@ object UiCustomTheme {
     var miniSpinCover by mutableStateOf(true)
     var miniShowVisualizer by mutableStateOf(true)
     var miniShowProgress by mutableStateOf(true)
+
+    // Wave effects configuration (all live reactive)
+    const val DefaultWaveStyle: String = "all"
+    const val DefaultWaveIntensity: Float = 1.0f
+    var miniShowBgWave by mutableStateOf(true)
+    var miniShowCoverWave by mutableStateOf(true)
+    var miniWavyProgress by mutableStateOf(true)
+    var playerShowWave by mutableStateOf(true)
+    var miniWaveStyle by mutableStateOf(DefaultWaveStyle)
+    var miniWaveIntensity by mutableFloatStateOf(DefaultWaveIntensity)
 }
 
 /**
