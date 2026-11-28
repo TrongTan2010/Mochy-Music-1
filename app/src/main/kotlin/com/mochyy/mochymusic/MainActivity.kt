@@ -638,21 +638,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Smoothly glide the app-wide accent color whenever the playing song or accent setting changes
-        val targetActiveAccent = if (com.mochyy.mochymusic.ui.component.UiCustomTheme.dynamicSongAccent) {
-            com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongAccent
-                ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.accentColor
-        } else {
-            com.mochyy.mochymusic.ui.component.UiCustomTheme.accentColor
-        }
-        val smoothActiveAccent by androidx.compose.animation.animateColorAsState(
-            targetValue = targetActiveAccent,
-            animationSpec = tween(durationMillis = 550),
-            label = "dynamicSongAccent",
-        )
-        androidx.compose.runtime.SideEffect {
-            com.mochyy.mochymusic.ui.component.UiCustomTheme.animatedAccentColor = smoothActiveAccent
-        }
+        // Drive the smooth accent color transition in an isolated leaf Composable so color animation frames
+        // never trigger root recomposition of MainActivity.
+        DynamicAccentColorDriver()
 
         MochyTheme(
             darkTheme = useDarkTheme,
@@ -1329,7 +1317,7 @@ class MainActivity : ComponentActivity() {
                                         Modifier
                                             .fillMaxSize()
                                             .windowInsetsPadding(WindowInsets.stableSystemBars.only(WindowInsetsSides.Horizontal))
-                                            .glassRoot(glassState, isActive = { playerBottomSheetState.progress < 0.999f })
+                                            .glassRoot(glassState, isActive = { launchIntro.done && playerBottomSheetState.progress < 0.999f })
                                     ) {
                                     com.mochyy.mochymusic.ui.screens.settings.modules.ModuleAppBackground(
                                         currentRoute = currentRoute,
@@ -1901,6 +1889,24 @@ val LocalIsPlayerExpanded = compositionLocalOf { false }
  * wallpaper - which is the whole point of the M3 player styles.
  */
 val LocalArtworkColor = androidx.compose.runtime.compositionLocalOf { DefaultThemeColor }
+
+@Composable
+private fun DynamicAccentColorDriver() {
+    val targetActiveAccent = if (com.mochyy.mochymusic.ui.component.UiCustomTheme.dynamicSongAccent) {
+        com.mochyy.mochymusic.ui.component.UiCustomTheme.detectedSongAccent
+            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.accentColor
+    } else {
+        com.mochyy.mochymusic.ui.component.UiCustomTheme.accentColor
+    }
+    val smoothActiveAccent by androidx.compose.animation.animateColorAsState(
+        targetValue = targetActiveAccent,
+        animationSpec = tween(durationMillis = 550),
+        label = "dynamicSongAccent",
+    )
+    androidx.compose.runtime.SideEffect {
+        com.mochyy.mochymusic.ui.component.UiCustomTheme.animatedAccentColor = smoothActiveAccent
+    }
+}
 
 val LocalDetailAccentColor = staticCompositionLocalOf<androidx.compose.runtime.MutableState<Color?>> {
     androidx.compose.runtime.mutableStateOf(null)

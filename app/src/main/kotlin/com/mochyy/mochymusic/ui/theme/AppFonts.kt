@@ -203,13 +203,14 @@ internal object AppFonts {
 
     fun start(context: Context, scope: CoroutineScope) {
         scope.launch(Dispatchers.IO) {
+            // Avoid scanning /system/fonts and recomposing MochyTheme right in the middle of cold-start frames
+            com.mochyy.mochymusic.ui.launch.LaunchGate.awaitIntro()
             val caps = probeSystemCapabilities()
             probedSystemCaps = caps
             val store = context.dataStore
             store.data.map { it.storedSnapshot() }.distinctUntilChanged()
-                .onEach {
+                .onEach { snapshot ->
                     lock.withLock {
-                        val snapshot = store.data.first().storedSnapshot()
                         val config = resolveConfig(context, snapshot)
                         publish(context, config, caps)
                         cleanFiles(context, config)

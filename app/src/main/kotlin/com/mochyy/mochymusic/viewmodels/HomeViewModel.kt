@@ -530,12 +530,13 @@ class HomeViewModel @Inject constructor(
         if (System.currentTimeMillis() - lastPlayedLikedSongs < 86400000L * 7) {
             val likedCount = database.likedSongsCount().first()
             val likedPlaylistEntity = com.mochyy.mochymusic.db.entities.Playlist(
-                playlist = com.mochyy.mochymusic.db.entities.PlaylistEntity(id = "liked", name = context.getString(R.string.liked), thumbnailUrl = likedCoverImage()),
+                playlist = com.mochyy.mochymusic.db.entities.PlaylistEntity(id = "liked", name = context.getString(R.string.liked), thumbnailUrl = cachedLikedCoverUrl),
                 songCount = likedCount,
                 songThumbnails = listOf()
             )
             merged.removeAll { it.id == "liked" }
             merged.add(0, likedPlaylistEntity)
+            refreshLikedCoverAsync()
         }
 
         recentlyPlayed.value = merged.distinctBy { it.id }.take(15)
@@ -702,7 +703,7 @@ class HomeViewModel @Inject constructor(
         if (System.currentTimeMillis() - lastPlayedLikedSongs < 86400000L * 7) {
             val likedCount = database.likedSongsCount().first()
             val likedPlaylistEntity = com.mochyy.mochymusic.db.entities.Playlist(
-                playlist = com.mochyy.mochymusic.db.entities.PlaylistEntity(id = "liked", name = context.getString(R.string.liked), thumbnailUrl = likedCoverImage()),
+                playlist = com.mochyy.mochymusic.db.entities.PlaylistEntity(id = "liked", name = context.getString(R.string.liked), thumbnailUrl = cachedLikedCoverUrl),
                 songCount = likedCount,
                 songThumbnails = listOf()
             )
@@ -710,6 +711,7 @@ class HomeViewModel @Inject constructor(
             newList.removeAll { it.id == "liked" }
             newList.add(0, likedPlaylistEntity)
             keepListening.value = newList
+            refreshLikedCoverAsync()
         }
 
         localPlaylists.value = playlists.distinctBy { it.id }
@@ -1286,6 +1288,26 @@ class HomeViewModel @Inject constructor(
                         loadAccountPlaylists()
                     }
                 }
+        }
+    }
+
+    @Volatile
+    private var cachedLikedCoverUrl: String? = null
+    private var likedCoverJob: kotlinx.coroutines.Job? = null
+
+    private fun refreshLikedCoverAsync() {
+        if (likedCoverJob?.isActive == true) return
+        likedCoverJob = viewModelScope.launch(Dispatchers.IO) {
+            val url = likedCoverImage() ?: return@launch
+            if (url == cachedLikedCoverUrl) return@launch
+            cachedLikedCoverUrl = url
+            fun patch(list: List<LocalItem>?): List<LocalItem>? = list?.map { item ->
+                if (item is com.mochyy.mochymusic.db.entities.Playlist && item.id == "liked") {
+                    item.copy(playlist = item.playlist.copy(thumbnailUrl = url))
+                } else item
+            }
+            patch(recentlyPlayed.value)?.let { recentlyPlayed.value = it }
+            patch(keepListening.value)?.let { keepListening.value = it }
         }
     }
 

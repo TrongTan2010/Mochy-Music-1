@@ -34,10 +34,15 @@ fun SplashScreen.handOffToLaunchIntro(introPlays: () -> Boolean) {
             duration = if (introPlays()) HandOffFadeMillis else PlainFadeMillis
             interpolator = FadeEasing
             addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
+                private var done = false
+                private fun finish() {
+                    if (done) return
+                    done = true
                     provider.remove()
                     LaunchGate.onSplashGone()
                 }
+                override fun onAnimationEnd(animation: Animator) = finish()
+                override fun onAnimationCancel(animation: Animator) = finish()
             })
             start()
         }

@@ -131,9 +131,10 @@ private val MoveEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 private val ScaleEasing = CubicBezierEasing(0.20f, 1f, 0.32f, 1f)
 
 // Staggered depth cascade: Top Bar -> Hero -> Shelves -> Bottom Dock & Mini-Player
-private const val RiseDelayMillis = 40
-private const val RiseMillis = 420
-private const val RiseStaggerMillis = 55
+// Finishes right as the logo lands (30 + 360 + 3*35 = 495ms ~= FlightMillis) so nothing holds after landing
+private const val RiseDelayMillis = 30
+private const val RiseMillis = 360
+private const val RiseStaggerMillis = 35
 private const val RiseOrders = 4
 private const val RiseTotalMillis = RiseMillis + (RiseOrders - 1) * RiseStaggerMillis
 private val RiseEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
@@ -141,10 +142,10 @@ private val RiseDistance = 28.dp
 
 // the essentials (player, theme, Home's first composition) get up to this long while the mark
 // stands still, so the heaviest frame never lands mid-flight; then the intro plays regardless
-private const val EssentialsTimeoutMillis = 1_000L
+private const val EssentialsTimeoutMillis = 650L
 
-// the splash steps aside once the first frame is up; a launch with no splash at all moves on after this
-private const val SplashTimeoutMillis = 800L
+// the splash steps aside once the first frame is up; a launch whose exit callback never fires moves on quickly
+private const val SplashTimeoutMillis = 240L
 
 // soft motion blur through the middle of the curved flight
 private const val BlurPeak = 5.5f

@@ -59,8 +59,20 @@ class SecretPreferences(private val raw: DataStore<Preferences>) : DataStore<Pre
             ProxyPasswordKey,
         )
 
+        // Memoize the most recent snapshot by reference identity: DataStore emits the same
+        // Preferences instance to every active collector, so 30+ startup collectors share one
+        // decrypt instead of running AES-GCM + KeyStore work dozens of times on boot.
+        private val cacheLock = Any()
+        private var cachedRaw: Preferences? = null
+        private var cachedPlain: Preferences? = null
+
         // open secrets for the app and keep SecretGuard updated so modules can't smuggle them out
         fun unseal(stored: Preferences): Preferences {
+            synchronized(cacheLock) {
+                if (cachedRaw === stored) {
+                    cachedPlain?.let { return it }
+                }
+            }
             val out = stored.toMutablePreferences()
             val active = ArrayList<String>(SecretKeys.size)
             for (key in SecretKeys) {
@@ -74,7 +86,12 @@ class SecretPreferences(private val raw: DataStore<Preferences>) : DataStore<Pre
                 }
             }
             com.mochyy.mochymusic.modules.security.SecretGuard.register("settings", *active.toTypedArray())
-            return out
+            val result = out.toPreferences()
+            synchronized(cacheLock) {
+                cachedRaw = stored
+                cachedPlain = result
+            }
+            return result
         }
 
         fun seal(plain: Preferences, stored: Preferences): Preferences {

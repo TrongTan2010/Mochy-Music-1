@@ -57,8 +57,10 @@ internal class ModuleLooks(private val context: Context) {
             look.forEach { (name, raw) -> if (name !in wanted && Settings[name]?.normalise(raw) != null) wanted[name] = raw }
         }
         val held = readHolds()
+        val migrated = backups.getBoolean("migrated_old_backups", false)
+        if (wanted.isEmpty() && held.isEmpty() && migrated) return@withLock
         context.dataStore.edit { prefs ->
-            migrateOldBackups(prefs, held)
+            if (!migrated) migrateOldBackups(prefs, held)
             (held.keys - wanted.keys).forEach { name ->
                 val hold = held.remove(name) ?: return@forEach
                 val setting = Settings[name] ?: return@forEach
@@ -76,6 +78,7 @@ internal class ModuleLooks(private val context: Context) {
                 setting.write(prefs, raw)
             }
         }
+        if (!migrated) backups.edit().putBoolean("migrated_old_backups", true).apply()
         writeHolds(held)
     }
 

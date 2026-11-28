@@ -1093,7 +1093,11 @@ class MusicService :
             dataStore.get(PlayerVolumeKey, 1f).coerceIn(0f, 1f).let { if (it < MinRestoredVolume) 1f else it },
         )
 
-        initializeCast()
+        // Defer CastContext/MediaRouter init until after the launch intro lands so GMS Dynamite IPC never stalls cold start
+        scope.launch {
+            com.mochyy.mochymusic.ui.launch.LaunchGate.awaitIntro()
+            if (isActive) initializeCast()
+        }
 
         // Audio FX's speed and pitch, on whichever player is playing. The equalizer and effects need
         // nothing here: the store hands them to the processors live, with no seek or reload.
@@ -1440,84 +1444,100 @@ class MusicService :
             }
 
         if (dataStore.get(PersistentQueueKey, true)) {
-            val queueFile = filesDir.resolve(PERSISTENT_QUEUE_FILE)
-            if (queueFile.exists()) {
-                runCatching {
-                    queueFile.inputStream().use { fis ->
-                        ObjectInputStream(fis).use { oos ->
-                            oos.readObject() as PersistQueue
-                        }
-                    }
-                }.onSuccess { queue ->
+            scope.launch(Dispatchers.IO) {
+                val queueFile = filesDir.resolve(PERSISTENT_QUEUE_FILE)
+                val restoredQueue = if (queueFile.exists()) {
                     runCatching {
+                        queueFile.inputStream().use { fis ->
+                            ObjectInputStream(fis).use { oos ->
+                                oos.readObject() as PersistQueue
+                            }
+                        }
+                    }.fold(
+                        onSuccess = { queue ->
+                            runCatching { queue.toQueue().withRestoredManualSongs() }
+                                .onFailure { error ->
+                                    Timber.tag(TAG).w(error, "Failed to restore persisted queue, clearing data")
+                                    clearPersistedQueueFiles()
+                                }
+                                .getOrNull()
+                        },
+                        onFailure = { error ->
+                            Timber.tag(TAG).w(error, "Failed to read persisted queue, clearing data")
+                            clearPersistedQueueFiles()
+                            null
+                        },
+                    )
+                } else null
 
-                        val restoredQueue = queue.toQueue().withRestoredManualSongs()
+                val automixFile = filesDir.resolve(PERSISTENT_AUTOMIX_FILE)
+                val restoredAutomix = if (automixFile.exists()) {
+                    runCatching {
+                        automixFile.inputStream().use { fis ->
+                            ObjectInputStream(fis).use { oos ->
+                                oos.readObject() as PersistQueue
+                            }
+                        }
+                    }.fold(
+                        onSuccess = { queue ->
+                            runCatching { queue.items.map { it.toMediaItem() } }
+                                .onFailure { error ->
+                                    Timber.tag(TAG).w(error, "Failed to restore automix queue, clearing data")
+                                    clearPersistedQueueFiles()
+                                }
+                                .getOrNull()
+                        },
+                        onFailure = { error ->
+                            Timber.tag(TAG).w(error, "Failed to read automix queue, clearing data")
+                            clearPersistedQueueFiles()
+                            null
+                        },
+                    )
+                } else null
 
-                        scope.launch {
-                            playerInitialized.first { it }
-                            if (isActive) {
-                                playQueue(
-                                    queue = restoredQueue,
-                                    playWhenReady = false,
-                                )
+                val playerStateFile = filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE)
+                val restoredPlayerState = if (playerStateFile.exists()) {
+                    runCatching {
+                        playerStateFile.inputStream().use { fis ->
+                            ObjectInputStream(fis).use { oos ->
+                                oos.readObject() as PersistPlayerState
                             }
                         }
                     }.onFailure { error ->
-                        Timber.tag(TAG).w(error, "Failed to restore persisted queue, clearing data")
+                        Timber.tag(TAG).w(error, "Failed to read player state, clearing data")
                         clearPersistedQueueFiles()
-                    }
-                }.onFailure { error ->
-                    Timber.tag(TAG).w(error, "Failed to read persisted queue, clearing data")
-                    clearPersistedQueueFiles()
-                }
-            }
+                    }.getOrNull()
+                } else null
 
-            val automixFile = filesDir.resolve(PERSISTENT_AUTOMIX_FILE)
-            if (automixFile.exists()) {
-                runCatching {
-                    automixFile.inputStream().use { fis ->
-                        ObjectInputStream(fis).use { oos ->
-                            oos.readObject() as PersistQueue
+                if (restoredAutomix != null) {
+                    automixItems.value = restoredAutomix
+                }
+
+                if (restoredQueue != null) {
+                    scope.launch {
+                        playerInitialized.first { it }
+                        if (isActive) {
+                            playQueue(
+                                queue = restoredQueue,
+                                playWhenReady = false,
+                            )
                         }
                     }
-                }.onSuccess { queue ->
-                    runCatching {
-                        automixItems.value = queue.items.map { it.toMediaItem() }
-                    }.onFailure { error ->
-                        Timber.tag(TAG).w(error, "Failed to restore automix queue, clearing data")
-                        clearPersistedQueueFiles()
-                    }
-                }.onFailure { error ->
-                    Timber.tag(TAG).w(error, "Failed to read automix queue, clearing data")
-                    clearPersistedQueueFiles()
                 }
-            }
 
-            val playerStateFile = filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE)
-            if (playerStateFile.exists()) {
-                runCatching {
-                    playerStateFile.inputStream().use { fis ->
-                        ObjectInputStream(fis).use { oos ->
-                            oos.readObject() as PersistPlayerState
-                        }
-                    }
-                }.onSuccess { playerState ->
-
+                if (restoredPlayerState != null) {
                     scope.launch {
                         delay(1000)
 
                         // older saves held the player's live volume (0 if it was muted or fading
                         // when saved): only a real one is taken, and the slider's own saved value
                         // (PlayerVolumeKey, read at start) stands otherwise
-                        if (playerState.volume >= MinRestoredVolume) playerVolume.value = playerState.volume
+                        if (restoredPlayerState.volume >= MinRestoredVolume) playerVolume.value = restoredPlayerState.volume
 
-                        if (playerState.currentMediaItemIndex < player.mediaItemCount) {
-                            player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
+                        if (restoredPlayerState.currentMediaItemIndex < player.mediaItemCount) {
+                            player.seekTo(restoredPlayerState.currentMediaItemIndex, restoredPlayerState.currentPosition)
                         }
                     }
-                }.onFailure { error ->
-                    Timber.tag(TAG).w(error, "Failed to read player state, clearing data")
-                    clearPersistedQueueFiles()
                 }
             }
         }

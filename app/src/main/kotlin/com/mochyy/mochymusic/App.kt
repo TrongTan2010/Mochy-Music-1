@@ -97,6 +97,8 @@ class App : Application(), SingletonImageLoader.Factory {
         com.mochyy.mochymusic.utils.NotRecommended.init(this)
 
         applicationScope.launch(Dispatchers.IO) {
+            // Wait until after the launch intro so this write transaction doesn't contend with Home's initial DB reads
+            com.mochyy.mochymusic.ui.launch.LaunchGate.awaitIntro()
             try {
                 musicDatabase.query { purgeTimestampArtists() }
             } catch (e: Exception) {
