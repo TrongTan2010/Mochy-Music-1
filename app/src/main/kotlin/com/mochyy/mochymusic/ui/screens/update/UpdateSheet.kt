@@ -104,25 +104,12 @@ import com.mochyy.mochymusic.ui.component.RemoteFocus
 import com.mochyy.mochymusic.ui.component.sheetHandleRoom
 
 @Composable
-fun rememberUpdateState(): androidx.compose.runtime.State<UpdateState> {
-    val context = LocalContext.current
-    val state = remember { mutableStateOf<UpdateState>(UpdateState.Checking) }
-    LaunchedEffect(Unit) { state.value = checkUpdate(updateChannel(context), force = false) }
-    return state
-}
+fun rememberUpdateState(): androidx.compose.runtime.State<UpdateState> =
+    remember { mutableStateOf<UpdateState>(UpdateState.UpToDate) }
 
-/** asks github (or the shared copy, unless force is set) whether a newer release is out on the channel */
+/** Version/update check disabled for this build. */
 private suspend fun checkUpdate(channel: UpdateChannel, force: Boolean): UpdateState =
-    getLatestRelease(channel, force).fold(
-        onSuccess = { release ->
-            when {
-                release == null -> UpdateState.UpToDate
-                isNewerThanInstalled(release.version) -> UpdateState.Available(release)
-                else -> UpdateState.UpToDate
-            }
-        },
-        onFailure = { UpdateState.Failed(it.message ?: "Couldn't reach GitHub") },
-    )
+    UpdateState.UpToDate
 
 /** shows the app version sheet as a PopupSheet, see docs/popup-sheet.skill.md */
 fun PopupSheetState.showUpdateSheet(updateState: UpdateState, onOpenDevSpace: (Int) -> Unit = {}) {

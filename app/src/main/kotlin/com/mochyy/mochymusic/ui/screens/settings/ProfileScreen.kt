@@ -795,17 +795,10 @@ fun ProfileScreen(navController: NavController) {
                             zoomOutState.dismissAll()
                             navController.navigate("developer_space?person=$personIndex")
                         }
-                        val hasUpdate = updateState is com.mochyy.mochymusic.core.updater.UpdateState.Available
                         VersionCard(
-                            updateHeadline = if (hasUpdate) UpdateHeadline else null,
-                            onCardClick = { zoomOutState.showUpdateSheet(updateState, onOpenDevSpace = openDevSpace) },
-                            onPillClick = {
-                                if (hasUpdate) {
-                                    zoomOutState.showUpdateSheet(updateState, onOpenDevSpace = openDevSpace)
-                                } else {
-                                    zoomOutState.showAboutSheet(onOpenDevSpace = openDevSpace)
-                                }
-                            },
+                            updateHeadline = null,
+                            onCardClick = { zoomOutState.showAboutSheet(onOpenDevSpace = openDevSpace) },
+                            onPillClick = { zoomOutState.showAboutSheet(onOpenDevSpace = openDevSpace) },
                         )
                         Spacer(Modifier.height(16.dp))
                         DeveloperCard(onClick = { navController.navigate("developer_space") })

@@ -161,7 +161,6 @@ internal val SettingsIndex = listOf(
     SettingsEntry("App behaviour", "App behaviour", "general_settings", "general app language updates network data library privacy"),
     SettingsEntry("Larp mode", "App behaviour", "general_settings", "larp 67 flac 768 khz wadax atlantis dac hi-res lossless bit-perfect flex"),
     SettingsEntry("App language", "App behaviour", "general_settings", "language bahasa locale device system indonesia english translate", R.string.app_language),
-    SettingsEntry("Disable App Updates notice", "App behaviour", "general_settings", "update popup notification updater"),
     SettingsEntry("Disable description on settings", "App behaviour", "general_settings", "hide subtitle text rows titles only"),
     SettingsEntry("Offline mode", "App behaviour", "general_settings", "play downloaded cache offline"),
     SettingsEntry("Data saver", "App behaviour", "general_settings", "data saver mobile metered cellular bandwidth lower quality canvas video"),

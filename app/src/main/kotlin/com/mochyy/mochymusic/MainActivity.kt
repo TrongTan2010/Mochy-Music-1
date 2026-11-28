@@ -504,26 +504,6 @@ class MainActivity : ComponentActivity() {
         val enableHighRefreshRate by rememberPreference(EnableHighRefreshRateKey, defaultValue = true)
         val context = LocalContext.current
 
-        LaunchedEffect(Unit) {
-            if (getAutoUpdateCheckSetting(context)) {
-
-                delay(2000L)
-                // Same cached lookup the version sheet and home prompt use (this app's own
-                // releases - the old checker here queried another project's repo). Launch-time
-                // only: nothing about updates runs in the background.
-                val channel = com.mochyy.mochymusic.core.updater.updateChannel(context)
-                val release = com.mochyy.mochymusic.core.updater.getLatestRelease(channel).getOrNull()
-                val isAvailable = release != null &&
-                    com.mochyy.mochymusic.core.updater.isNewerThanInstalled(release.version)
-                saveUpdateAvailableState(context, isAvailable)
-
-                if (release != null && isAvailable && getUpdateNotificationsSetting(context)) {
-                    // At most three reminders per release (now, +2 weeks, +3 months).
-                    com.mochyy.mochymusic.ui.screens.update.maybeNotifyUpdate(context, release)
-                }
-            }
-        }
-
         // "Keep screen on" (the player's menu, or a chevron button): the phone doesn't sleep while
         // Mochy is on screen. A window flag only holds while the app is in front, which is the point.
         val keepScreenOn by rememberPreference(com.mochyy.mochymusic.constants.KeepScreenOn, defaultValue = false)
@@ -1431,8 +1411,6 @@ class MainActivity : ComponentActivity() {
 
                     // "share song" from any menu opens here, over the app and the player
                     com.mochyy.mochymusic.ui.player.share.song.SongShareHost()
-
-                    HomeUpdatePrompt(currentRoute = currentRoute)
 
                     sharedSong?.let { song ->
                         playerConnection?.let {

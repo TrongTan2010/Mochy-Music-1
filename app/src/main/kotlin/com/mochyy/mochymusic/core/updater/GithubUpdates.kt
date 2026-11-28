@@ -125,26 +125,13 @@ private suspend fun getReleases(force: Boolean): Result<List<ParsedRelease>> {
 // release only sees releases; nightly sees the prereleases and the releases, and takes the newest of all
 private fun ParsedRelease.inChannel(channel: UpdateChannel) = channel == UpdateChannel.Nightly || !release.isNightly
 
-/** The newest release on [channel], whatever is installed. */
+/** Version/update checks disabled for this build. */
 suspend fun getLatestRelease(channel: UpdateChannel, force: Boolean = false): Result<GithubRelease?> =
-    getReleases(force).map { list -> list.filter { it.inChannel(channel) }.maxByOrNull { it.version }?.release }
+    Result.success(null)
 
-/**
- * What "Downgrade to" offers, null when there's none: on release, the newest release before the
- * installed x.y.z (an older build of the same version doesn't count); on nightly, the nightly before
- * this one. A nightly never steps down to a release, that can break the library.
- */
-suspend fun getPreviousRelease(channel: UpdateChannel, force: Boolean = false): Result<GithubRelease?> {
-    val installed = parseFullVersion(BuildConfig.VERSION_NAME).copy(buildNumber = 0)
-    return getReleases(force).map { list ->
-        when {
-            channel == UpdateChannel.Release && installedIsNightly -> null
-            channel == UpdateChannel.Release -> list.filter { !it.release.isNightly && it.version.copy(buildNumber = 0) < installed }
-            !installedIsNightly -> null
-            else -> list.filter { it.release.isNightly && it.version.copy(buildNumber = 0) < installed }
-        }?.maxByOrNull { it.version }?.release
-    }
-}
+/** Version/update checks disabled for this build. */
+suspend fun getPreviousRelease(channel: UpdateChannel, force: Boolean = false): Result<GithubRelease?> =
+    Result.success(null)
 
 private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(Dispatchers.IO) {
     runCatching {
@@ -239,11 +226,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
     }
 }
 
-fun isNewerThanInstalled(candidateVersionText: String): Boolean {
-    val candidate = parseFullVersion(candidateVersionText)
-    val installed = parseFullVersion(BuildConfig.VERSION_NAME)
-    return candidate > installed
-}
+fun isNewerThanInstalled(candidateVersionText: String): Boolean = false
 
 suspend fun downloadApk(
     context: Context,

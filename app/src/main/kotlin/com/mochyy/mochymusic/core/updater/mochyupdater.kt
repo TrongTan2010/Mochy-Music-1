@@ -557,22 +557,16 @@ fun saveUpdateAvailableState(context: Context, available: Boolean) {
     sharedPrefs.edit().putBoolean(KEY_UPDATE_AVAILABLE, available).apply()
 }
 
-fun getAutoUpdateCheckSetting(context: Context): Boolean {
-    val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    return sharedPrefs.getBoolean(KEY_AUTO_UPDATE_CHECK, true)
-}
+fun getAutoUpdateCheckSetting(context: Context): Boolean = false
 
 fun saveAutoUpdateCheckSetting(context: Context, enabled: Boolean) {
     val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    sharedPrefs.edit().putBoolean(KEY_AUTO_UPDATE_CHECK, enabled).apply()
+    sharedPrefs.edit().putBoolean(KEY_AUTO_UPDATE_CHECK, false).apply()
 }
 
 const val KEY_UPDATE_NOTIFICATIONS = "update_notifications"
 
-fun getUpdateNotificationsSetting(context: Context): Boolean {
-    val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    return sharedPrefs.getBoolean(KEY_UPDATE_NOTIFICATIONS, true)
-}
+fun getUpdateNotificationsSetting(context: Context): Boolean = false
 
 fun saveUpdateNotificationsSetting(context: Context, enabled: Boolean) {
     val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -608,33 +602,17 @@ private fun formatGitHubDate(githubDate: String): String = try {
     githubDate
 }
 
-fun isNewerVersion(latestVersion: String, currentVersion: String): Boolean {
-    val latestVersionClean = latestVersion.removePrefix("b").removePrefix("v")
-    val currentVersionClean = currentVersion.removePrefix("b").removePrefix("v")
-
-    val latestParts = latestVersionClean.split(".").map { it.toIntOrNull() ?: 0 }
-    val currentParts = currentVersionClean.split(".").map { it.toIntOrNull() ?: 0 }
-
-    for (i in 0 until maxOf(latestParts.size, currentParts.size)) {
-        val latest = latestParts.getOrElse(i) { 0 }
-        val current = currentParts.getOrElse(i) { 0 }
-        when {
-            latest > current -> return true
-            latest < current -> return false
-        }
-    }
-
-    if (latestVersionClean == currentVersionClean) {
-        val latestIsBeta = latestVersion.startsWith("b")
-        val currentIsBeta = currentVersion.startsWith("b")
-
-        if (currentIsBeta && !latestIsBeta) return true
-    }
-
-    return false
-}
+fun isNewerVersion(latestVersion: String, currentVersion: String): Boolean = false
 
 suspend fun checkForUpdate(
+    context: Context,
+    onSuccess: (tag: String, isAvailable: Boolean, changelog: List<ChangelogSection>, size: String, date: String, description: String?, imageUrl: String?, apkUrl: String?) -> Unit,
+    onError: () -> Unit,
+) {
+    onSuccess(BuildConfig.VERSION_NAME, false, emptyList(), "", "", null, null, null)
+}
+
+private suspend fun checkForUpdateLegacyUnused(
     context: Context,
     onSuccess: (tag: String, isAvailable: Boolean, changelog: List<ChangelogSection>, size: String, date: String, description: String?, imageUrl: String?, apkUrl: String?) -> Unit,
     onError: () -> Unit,

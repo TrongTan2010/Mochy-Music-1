@@ -116,24 +116,9 @@ private fun larpItems(): List<SettingsItem> {
 
 @Composable
 private fun generalItems(): List<SettingsItem> {
-    val context = LocalContext.current
-    val (noticeHidden, onNoticeHidden) = rememberPreference(HideUpdateNoticeKey, defaultValue = false)
     val (hideDescriptions, onHideDescriptions) = rememberPreference(HideSettingsDescriptionsKey, defaultValue = true)
-    // the launch check's notification reads its own switch, so it follows this one too
-    val setNoticeHidden = { hidden: Boolean ->
-        onNoticeHidden(hidden)
-        saveUpdateNotificationsSetting(context, !hidden)
-    }
     return listOf(
         languageItem(),
-        switchItem(
-            key = "Disable App Updates notice",
-            title = stringResource(R.string.settings_updates_notice),
-            description = stringResource(R.string.settings_updates_notice_desc),
-            icon = painterResource(R.drawable.update),
-            checked = noticeHidden,
-            onCheckedChange = setNoticeHidden,
-        ),
         switchItem(
             key = "Disable description on settings",
             title = stringResource(R.string.settings_hide_descriptions),
