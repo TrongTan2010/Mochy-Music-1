@@ -1015,7 +1015,7 @@ private fun SharedCapsuleSeekBar(
                     fraction = shownFraction,
                     activeColor = activeColor,
                     inactiveColor = Color.White.copy(alpha = 0.22f),
-                    animateWave = (playingNow || preview) && !dragging,
+                    animateWave = (playingNow || !enabled) && !dragging,
                     active = dragging,
                     modifier = Modifier.fillMaxWidth(),
                 )

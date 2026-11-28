@@ -483,7 +483,7 @@ private fun AppleMusicSeekBar(
                     fraction = shownFraction,
                     activeColor = if (dragging) Color.White else Color.White.copy(alpha = 0.94f),
                     inactiveColor = Color.White.copy(alpha = 0.24f),
-                    animateWave = (playingNow || preview) && !dragging,
+                    animateWave = (playingNow || !enabled) && !dragging,
                     active = dragging,
                     modifier = Modifier.fillMaxWidth(),
                 )
