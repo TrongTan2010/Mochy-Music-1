@@ -771,6 +771,17 @@ fun MorphingCover(
             pureBlack = pureBlack,
         )
 
+        if (!pillFrame.merged) {
+            MiniM3TonalWave(
+                progressProvider = progressProvider,
+                dockShiftPx = endpointsPx.dockShiftPx,
+                dockEndShiftPx = endpointsPx.dockEndShiftPx,
+                fullWidthPx = endpointsPx.fullWidthPx,
+                pillFrame = pillFrame,
+                isPlaying = isPlaying,
+            )
+        }
+
         // a look's own mini player draws in the pill in place of mochy's words and buttons; the cover stays mochy's, so it still grows into the player
         val moduleMini = com.mochyy.mochymusic.modules.skin.ActiveSkin.mini?.takeIf { !pillFrame.merged }
         if (moduleMini != null) {
@@ -902,6 +913,17 @@ fun MorphingCover(
         // where the style itself shows. It stays composed above that, at alpha 0: built at 42% it was
         // a heavy frame in the middle of every close, and dropped there in the middle of every open.
         if (trackInfo.thumbnailUrl != null || isDiscStyle) {
+            if (!pillFrame.merged) {
+                MiniM3CoverWavyRing(
+                    progressProvider = progressProvider,
+                    centerProvider = {
+                        val rect = endpointsPx.artRect(progressProvider(), horizontalOffsetProvider(), lyricsProgressProvider())
+                        Offset(rect[0] + rect[2] / 2f, rect[1] + rect[3] / 2f)
+                    },
+                    baseRadiusPx = endpointsPx.miniArtHeightPx / 2f,
+                    isPlaying = isPlaying,
+                )
+            }
             Box(
                 modifier = Modifier
                     .morphLayout(

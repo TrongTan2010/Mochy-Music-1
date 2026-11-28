@@ -4,9 +4,13 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -15,16 +19,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameMillis
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.mochyy.mochymusic.LocalPlayerConnection
@@ -36,17 +45,214 @@ import com.mochyy.mochymusic.ui.component.MiniPillFrame
 import com.mochyy.mochymusic.ui.component.UiCustomTheme
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
-private const val MiniWavePeriodMs = 1100L
+private const val M3TonalWavePeriodMs = 2200L
+private const val M3CoverRingPeriodMs = 5200L
 
 /**
- * Authentic Material 3 Expressive wavy linear progress indicator along the lower edge of the Mini-Player:
- * - Active (played) segment ripples clearly as a smooth Material 3 sine wave (3.0dp amplitude, 12dp wavelength)
- *   while playing and flattens smoothly into a crisp straight line when paused.
- * - Clean Material 3 vertical capsule playhead & gap separating the wavy active segment from the flat remaining track.
- * - Signature Material 3 stop indicator dot at the far right of the inactive track.
+ * Clean Material 3 Expressive tonal wave gliding smoothly across the lower area of the Mini-Player capsule.
+ * Single tonal accent palette (no neon/rainbow clutter) — clearly visible while playing and smoothly
+ * flattens into a calm horizon when paused.
  */
+@Composable
+internal fun MiniM3TonalWave(
+    progressProvider: () -> Float,
+    dockShiftPx: () -> Float,
+    dockEndShiftPx: () -> Float,
+    fullWidthPx: Float,
+    pillFrame: MiniPillFrame,
+    isPlaying: Boolean,
+) {
+    if (!UiCustomTheme.miniWavyProgress) return
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val visible by remember { derivedStateOf { progressProvider() < 0.22f } }
+    if (!visible) return
+
+    val effectivelyPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
+    val playing = isPlaying || effectivelyPlaying
+
+    val waveScale by animateFloatAsState(
+        targetValue = if (playing) 1f else 0f,
+        animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing),
+        label = "m3TonalWaveScale",
+    )
+
+    val needsClock = playing || waveScale > 0.01f
+    val clockMs = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(needsClock, visible) {
+        if (!needsClock || !visible) return@LaunchedEffect
+        clockMs.longValue = System.nanoTime() / 1_000_000L
+        while (true) {
+            withFrameMillis { clockMs.longValue = it }
+        }
+    }
+
+    val accent = AppleMusicAccent
+    val density = LocalDensity.current
+    val startPx = with(density) { pillFrame.start.toPx() }
+    val endPx = with(density) { pillFrame.end.toPx() }
+    val heightPx = with(density) { pillFrame.height.toPx() }
+    val pathFront = remember { Path() }
+    val pathBack = remember { Path() }
+
+    Canvas(
+        modifier = Modifier
+            .layout { measurable, constraints ->
+                val p = progressProvider()
+                val left = floor((startPx + dockShiftPx()) * (1f - p)).toInt()
+                val right = ceil(fullWidthPx - (endPx + dockEndShiftPx()) * (1f - p)).toInt()
+                val w = (right - left).coerceAtLeast(1)
+                val h = ceil(heightPx).toInt().coerceAtLeast(1)
+                val placeable = measurable.measure(Constraints.fixed(w, h))
+                layout(constraints.maxWidth, constraints.maxHeight) {
+                    placeable.place(left, 0)
+                }
+            }
+            .graphicsLayer {
+                alpha = (1f - progressProvider() / 0.22f).coerceIn(0f, 1f)
+            }
+    ) {
+        val w = size.width
+        val h = size.height
+        if (w <= 4f || h <= 4f) return@Canvas
+
+        val t = (clockMs.longValue % M3TonalWavePeriodMs).toFloat() / M3TonalWavePeriodMs.toFloat()
+        val phase = t * 2f * PI.toFloat()
+        val ampBack = 5.5.dp.toPx() * waveScale
+        val ampFront = 6.8.dp.toPx() * waveScale
+        val wavelength = 46.dp.toPx()
+        val steps = 44
+
+        // Back subtle tonal echo wave (pure Material 3 tonal surface tint)
+        val backBaseY = h * 0.68f
+        pathBack.reset()
+        for (i in 0..steps) {
+            val u = i.toFloat() / steps
+            val x = u * w
+            val y = backBaseY + sin((x / wavelength) * 2f * PI.toFloat() - phase * 0.85f + 1.9f) * ampBack
+            if (i == 0) pathBack.moveTo(x, y) else pathBack.lineTo(x, y)
+        }
+        pathBack.lineTo(w, h)
+        pathBack.lineTo(0f, h)
+        pathBack.close()
+        drawPath(
+            path = pathBack,
+            brush = Brush.verticalGradient(
+                0f to accent.copy(alpha = 0.14f + 0.08f * waveScale),
+                1f to accent.copy(alpha = 0.02f),
+                startY = h * 0.45f,
+                endY = h,
+            ),
+        )
+
+        // Front Material 3 Expressive tonal wave + clean rounded crest line
+        val frontBaseY = h * 0.74f
+        pathFront.reset()
+        for (i in 0..steps) {
+            val u = i.toFloat() / steps
+            val x = u * w
+            val y = frontBaseY + sin((x / wavelength) * 2f * PI.toFloat() - phase) * ampFront
+            if (i == 0) pathFront.moveTo(x, y) else pathFront.lineTo(x, y)
+        }
+        drawPath(
+            path = pathFront,
+            color = accent.copy(alpha = 0.48f * waveScale),
+            style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+        )
+        pathFront.lineTo(w, h)
+        pathFront.lineTo(0f, h)
+        pathFront.close()
+        drawPath(
+            path = pathFront,
+            brush = Brush.verticalGradient(
+                0f to accent.copy(alpha = 0.22f + 0.10f * waveScale),
+                1f to accent.copy(alpha = 0.04f),
+                startY = h * 0.50f,
+                endY = h,
+            ),
+        )
+    }
+}
+
+/**
+ * Material 3 Expressive scalloped/wavy circular ring rotating gently around the Mini-Player circular cover art
+ * (inspired by Material 3 Expressive CircularWavyProgressIndicator).
+ */
+@Composable
+internal fun MiniM3CoverWavyRing(
+    progressProvider: () -> Float,
+    centerProvider: () -> Offset,
+    baseRadiusPx: Float,
+    isPlaying: Boolean,
+) {
+    if (!UiCustomTheme.miniWavyProgress) return
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val visible by remember { derivedStateOf { progressProvider() < 0.18f } }
+    if (!visible) return
+
+    val effectivelyPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
+    val playing = isPlaying || effectivelyPlaying
+
+    val waveScale by animateFloatAsState(
+        targetValue = if (playing) 1f else 0f,
+        animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing),
+        label = "m3CoverRingScale",
+    )
+    if (waveScale <= 0.01f) return
+
+    val clockMs = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(playing, visible) {
+        if (!playing || !visible) return@LaunchedEffect
+        clockMs.longValue = System.nanoTime() / 1_000_000L
+        while (true) {
+            withFrameMillis { clockMs.longValue = it }
+        }
+    }
+
+    val accent = AppleMusicAccent
+    val ringPath = remember { Path() }
+
+    Canvas(
+        modifier = Modifier
+            .zIndex(1f)
+            .fillMaxSize()
+            .graphicsLayer {
+                alpha = (1f - progressProvider() / 0.18f).coerceIn(0f, 1f) * waveScale
+            }
+    ) {
+        val center = centerProvider()
+        val rot = ((clockMs.longValue % M3CoverRingPeriodMs).toFloat() / M3CoverRingPeriodMs.toFloat()) * 2f * PI.toFloat()
+        val lobes = 10
+        val rBase = baseRadiusPx + 2.4.dp.toPx()
+        val rAmp = 1.4.dp.toPx() * waveScale
+        val segments = 72
+        ringPath.reset()
+        for (i in 0..segments) {
+            val theta = (i.toFloat() / segments) * 2f * PI.toFloat()
+            val r = rBase + sin(lobes * theta - rot) * rAmp
+            val x = center.x + cos(theta) * r
+            val y = center.y + sin(theta) * r
+            if (i == 0) ringPath.moveTo(x, y) else ringPath.lineTo(x, y)
+        }
+        ringPath.close()
+        drawPath(
+            path = ringPath,
+            color = accent.copy(alpha = 0.85f),
+            style = Stroke(width = 1.9.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+        )
+    }
+}
+
+/**
+ * Official Material 3 Expressive [LinearWavyProgressIndicator] hugging the bottom of the Mini-Player.
+ * Uses Android's genuine Material 3 Expressive wavy indicator when [UiCustomTheme.miniWavyProgress] is enabled.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun MiniWavyProgressBar(
     progressProvider: () -> Float,
@@ -67,126 +273,76 @@ internal fun MiniWavyProgressBar(
     } else 0f
 
     val wavy = UiCustomTheme.miniWavyProgress
-    val waveScale by animateFloatAsState(
+    val waveAmp by animateFloatAsState(
         targetValue = if (wavy && playing) 1f else 0f,
         animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
-        label = "m3MiniWaveScale",
+        label = "m3OfficialWaveAmp",
     )
-
-    // Wall-clock frame loop (same proven pattern as SeekBarStyles.kt), unaffected by animator duration scale
-    val needsClock = wavy && (playing || waveScale > 0.01f)
-    val clockMs = remember { mutableLongStateOf(0L) }
-    LaunchedEffect(needsClock, visible) {
-        if (!needsClock || !visible) return@LaunchedEffect
-        clockMs.longValue = System.nanoTime() / 1_000_000L
-        while (true) {
-            withFrameMillis { clockMs.longValue = it }
-        }
-    }
 
     val accent = AppleMusicAccent
     val inactiveTrack = Color.White.copy(alpha = 0.22f)
     val dockCollapse = LocalDockCollapseProgress.current
     val showCollapsedSearch = LocalDockCollapsedSearchEnabled.current
-    val wavePath = remember { Path() }
+    val density = LocalDensity.current
+    val strokePx = with(density) { 2.8.dp.toPx() }
+    val stroke = remember(strokePx) { Stroke(width = strokePx, cap = StrokeCap.Round) }
 
-    Canvas(
+    Box(
+        contentAlignment = Alignment.Center,
         modifier = Modifier
             .zIndex(2f)
-            .fillMaxWidth()
-            .height(pillFrame.height)
+            .layout { measurable, constraints ->
+                val c = dockCollapse().coerceIn(0f, 1f)
+                val extraStart = if (pillFrame.merged) 0f else DockOrbClearance.toPx() * c
+                val extraEnd = if (pillFrame.merged || !showCollapsedSearch) 0f else DockOrbClearance.toPx() * c
+                val leftInset = ((pillFrame.start + 22.dp).toPx() + extraStart).roundToInt()
+                val rightInset = ((pillFrame.end + 22.dp).toPx() + extraEnd).roundToInt()
+                val barW = (constraints.maxWidth - leftInset - rightInset).coerceAtLeast(1)
+                val barH = 10.dp.roundToPx()
+                val placeable = measurable.measure(Constraints.fixed(barW, barH))
+                val topY = (pillFrame.height.toPx() - barH - 1.dp.toPx()).roundToInt().coerceAtLeast(0)
+                layout(constraints.maxWidth, pillFrame.height.roundToPx()) {
+                    placeable.place(leftInset, topY)
+                }
+            }
             .graphicsLayer {
                 alpha = (1f - progressProvider() / 0.25f).coerceIn(0f, 1f)
             }
     ) {
-        val c = dockCollapse().coerceIn(0f, 1f)
-        val extraStart = if (pillFrame.merged) 0f else DockOrbClearance.toPx() * c
-        val extraEnd = if (pillFrame.merged || !showCollapsedSearch) 0f else DockOrbClearance.toPx() * c
-        val leftInset = (pillFrame.start + 22.dp).toPx() + extraStart
-        val rightInset = (pillFrame.end + 22.dp).toPx() + extraEnd
-        val barWidth = (size.width - leftInset - rightInset).coerceAtLeast(0f)
-        if (barWidth <= 2f) return@Canvas
-
-        val strokeW = 2.2.dp.toPx()
-        // Lifted 6dp from bottom edge so the full 3.0dp Material 3 wave peaks are cleanly inside the pill clip
-        val centerY = size.height - 6.0.dp.toPx()
-        val endX = leftInset + barWidth
-        val gapPx = 4.5.dp.toPx()
-        val thumbX = leftInset + barWidth * fraction
-
-        val phase = if (wavy && waveScale > 0.005f) {
-            (clockMs.longValue % MiniWavePeriodMs).toFloat() / MiniWavePeriodMs.toFloat()
-        } else 0f
-
-        // 1. Active played segment — unmistakable Material 3 Expressive smooth sine wave
-        val activeLen = (thumbX - leftInset).coerceAtLeast(0f)
-        if (activeLen > 0.5f) {
-            val activeEnd = (thumbX - gapPx * 0.45f).coerceAtLeast(leftInset)
-            val drawableLen = (activeEnd - leftInset).coerceAtLeast(0f)
-            if (waveScale > 0.01f && drawableLen > 2.dp.toPx()) {
-                val wavelength = 12.dp.toPx()
-                val amplitude = 3.0.dp.toPx() * waveScale
-                val step = 1.5.dp.toPx()
-                wavePath.reset()
-                var px = 0f
-                var first = true
-                while (px < drawableLen) {
-                    val t = px / wavelength - phase
-                    val y = centerY + sin(t * 2f * PI.toFloat()) * amplitude
-                    if (first) {
-                        wavePath.moveTo(leftInset + px, y)
-                        first = false
-                    } else {
-                        wavePath.lineTo(leftInset + px, y)
-                    }
-                    px += step
-                }
-                val endT = drawableLen / wavelength - phase
-                wavePath.lineTo(leftInset + drawableLen, centerY + sin(endT * 2f * PI.toFloat()) * amplitude)
-                drawPath(
-                    path = wavePath,
-                    color = accent,
-                    style = Stroke(width = strokeW, cap = StrokeCap.Round, join = StrokeJoin.Round),
-                )
-            } else if (drawableLen > 0.5f) {
+        if (wavy) {
+            LinearWavyProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier.fillMaxWidth(),
+                color = accent,
+                trackColor = inactiveTrack,
+                stroke = stroke,
+                trackStroke = stroke,
+                gapSize = 4.dp,
+                stopSize = 3.dp,
+                amplitude = { p -> if (p > 0f) waveAmp else 0f },
+                wavelength = 15.dp,
+                waveSpeed = 16.dp,
+            )
+        } else {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val y = size.height / 2f
                 drawLine(
-                    color = accent,
-                    start = Offset(leftInset, centerY),
-                    end = Offset(activeEnd, centerY),
-                    strokeWidth = strokeW,
+                    color = inactiveTrack,
+                    start = Offset(0f, y),
+                    end = Offset(size.width, y),
+                    strokeWidth = strokePx,
                     cap = StrokeCap.Round,
                 )
+                if (fraction > 0.001f) {
+                    drawLine(
+                        color = accent,
+                        start = Offset(0f, y),
+                        end = Offset(size.width * fraction, y),
+                        strokeWidth = strokePx,
+                        cap = StrokeCap.Round,
+                    )
+                }
             }
-        }
-
-        // 2. Inactive remaining track — flat Material 3 line starting after the gap
-        val inactiveStart = (thumbX + gapPx * 0.75f).coerceAtMost(endX)
-        if (endX - inactiveStart > 1.dp.toPx()) {
-            drawLine(
-                color = inactiveTrack,
-                start = Offset(inactiveStart, centerY),
-                end = Offset(endX, centerY),
-                strokeWidth = strokeW,
-                cap = StrokeCap.Round,
-            )
-            // Material 3 Expressive stop indicator dot at track end
-            drawCircle(
-                color = accent.copy(alpha = 0.85f),
-                radius = strokeW * 0.55f,
-                center = Offset(endX, centerY),
-            )
-        }
-
-        // 3. Crisp Material 3 Expressive vertical pill thumb at playhead
-        if (fraction > 0.002f && fraction < 0.998f) {
-            val thumbHalfH = 3.8.dp.toPx()
-            drawLine(
-                color = Color.White,
-                start = Offset(thumbX, centerY - thumbHalfH),
-                end = Offset(thumbX, centerY + thumbHalfH),
-                strokeWidth = 2.4.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
         }
     }
 }
