@@ -145,6 +145,9 @@
     <string name="customise_animation_speed">Tốc độ hoạt ảnh</string>
     <string name="customise_slower">chậm hơn</string>
     <string name="customise_faster">nhanh hơn</string>
+    <string name="customise_launch_animation">Hoạt ảnh khởi động</string>
+    <string name="customise_launch_animation_desc">Logo bay vào Trang chủ khi mở app</string>
+    <string name="customise_launch_animation_speed">Tốc độ hoạt ảnh khởi động</string>
     <string name="customise_lyrics_animation">Hoạt ảnh\nlời bài hát</string>
     <string name="customise_style_boring">Nhàm chán</string>
     <string name="customise_style_plain">Đơn giản</string>

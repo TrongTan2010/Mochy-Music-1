@@ -1388,6 +1388,10 @@ val BlurStrengthPxKey = floatPreferencesKey("blurStrengthPx")
 val ElementBlurKey = booleanPreferencesKey("elementBlur")
 // how fast animations run on top of android's own animation speed, 1 means just follow android
 val AnimationSpeedKey = floatPreferencesKey("animationSpeed")
+// the logo flying into Home when the app opens from the launcher; off opens straight onto Home
+val LaunchIntroEnabledKey = booleanPreferencesKey("launchIntroEnabled")
+// how fast that launch animation runs, 1 is its normal pace, 2 twice as fast
+val LaunchIntroSpeedKey = floatPreferencesKey("launchIntroSpeed")
 // the phone's status bar over the open player, off hides it on every player style, the ipod too
 val PlayerStatusBarKey = booleanPreferencesKey("playerStatusBar")
 // out of the box the open player runs to the top of the screen with the status bar hidden

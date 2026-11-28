@@ -56,6 +56,8 @@ import com.mochyy.mochymusic.constants.DisableBlurKey
 import com.mochyy.mochymusic.constants.ElementBlurKey
 import com.mochyy.mochymusic.constants.EnableElementBlurAnimatorKey
 import com.mochyy.mochymusic.constants.EnableProgressiveBlurKey
+import com.mochyy.mochymusic.constants.LaunchIntroEnabledKey
+import com.mochyy.mochymusic.constants.LaunchIntroSpeedKey
 import com.mochyy.mochymusic.constants.LyricsMotionStyle
 import com.mochyy.mochymusic.constants.LyricsMotionStyleKey
 import com.mochyy.mochymusic.constants.PlayerNavBarDefault
@@ -222,7 +224,44 @@ internal fun AnimationSection(modifier: Modifier = Modifier) {
             },
             enabled = enabled,
         )
+        Spacer(Modifier.height(11.dp))
+        LaunchAnimationControls()
     }
+}
+
+// the logo flying into Home on a cold start: on or off, and how fast it runs; read at the next launch
+@Composable
+private fun LaunchAnimationControls() {
+    val (launchOn, onLaunchOn) = rememberPreference(LaunchIntroEnabledKey, defaultValue = true)
+    val (launchSpeed, onLaunchSpeed) = rememberPreference(LaunchIntroSpeedKey, defaultValue = 1f)
+    val haptic = LocalHapticFeedback.current
+    val stops = AnimationSpeeds
+    val index = stops.indexOfFirst { it >= launchSpeed - 0.01f }.takeIf { it >= 0 } ?: stops.lastIndex
+
+    com.mochyy.mochymusic.ui.screens.audiolab.LabCard(padding = 20.dp) {
+        com.mochyy.mochymusic.ui.screens.audiolab.LabToggleRow(
+            title = stringResource(R.string.customise_launch_animation),
+            subtitle = stringResource(R.string.customise_launch_animation_desc),
+            checked = launchOn,
+            onCheckedChange = onLaunchOn,
+        )
+    }
+    Spacer(Modifier.height(11.dp))
+    CustomiseSliderCard(
+        title = stringResource(R.string.customise_launch_animation_speed),
+        valueText = if (launchOn) animationSpeedLabel(launchSpeed) else stringResource(R.string.customise_off),
+        startLabel = stringResource(R.string.customise_slower),
+        endLabel = stringResource(R.string.customise_faster),
+        fraction = index / stops.lastIndex.toFloat(),
+        onFractionChange = { f ->
+            val next = stops[(f * stops.lastIndex).roundToInt()]
+            if (next != launchSpeed) {
+                haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                onLaunchSpeed(next)
+            }
+        },
+        enabled = launchOn,
+    )
 }
 
 // the four lyric styles to swipe through, each singing on its card as it really would, with the readings and the translation they're drawn with under them

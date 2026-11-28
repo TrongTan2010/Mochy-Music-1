@@ -207,6 +207,9 @@
     <string name="customise_animation_speed">Animation speed</string>
     <string name="customise_slower">slower</string>
     <string name="customise_faster">faster</string>
+    <string name="customise_launch_animation">Launch animation</string>
+    <string name="customise_launch_animation_desc">The logo flying into Home when the app opens</string>
+    <string name="customise_launch_animation_speed">Launch animation speed</string>
     <string name="customise_lyrics_animation">Lyrics\nAnimation</string>
     <string name="customise_style_boring">Boring</string>
     <string name="customise_style_plain">Plain</string>

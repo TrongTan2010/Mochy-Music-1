@@ -125,8 +125,8 @@ object LaunchGate {
     }
 }
 
-// Fluid flagship launch-to-Home transition timings (fast, cinematic, zero abrupt snap)
-private const val FlightMillis = 460
+// Fluid flagship launch-to-Home transition timings (fast, cinematic, zero abrupt snap); all scaled by the launch speed setting
+private const val FlightMillis = 500
 private val MoveEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 private val ScaleEasing = CubicBezierEasing(0.20f, 1f, 0.32f, 1f)
 
@@ -139,17 +139,18 @@ private const val RiseTotalMillis = RiseMillis + (RiseOrders - 1) * RiseStaggerM
 private val RiseEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 private val RiseDistance = 28.dp
 
-// Short cap so Home lays out cleanly for exact logo landing without stalling startup
-private const val EssentialsTimeoutMillis = 480L
+// the essentials (player, theme, Home's first composition) get up to this long while the mark
+// stands still, so the heaviest frame never lands mid-flight; then the intro plays regardless
+private const val EssentialsTimeoutMillis = 1_000L
 
 // the splash steps aside once the first frame is up; a launch with no splash at all moves on after this
-private const val SplashTimeoutMillis = 240L
+private const val SplashTimeoutMillis = 800L
 
 // soft motion blur through the middle of the curved flight
 private const val BlurPeak = 5.5f
 
 // the anime icon bouncing out into the mark, ripple and all
-private const val PreludeMillis = 280
+private const val PreludeMillis = 700
 
 // an adaptive icon on the splash: its 108dp layers drawn at 240dp, shown through a 160dp circle
 private const val IconLayerSize = 240f / 288f * 235f
@@ -179,7 +180,14 @@ class LaunchIntroState internal constructor(
     val plays: Boolean,
     // the anime icon the splash showed (android 13+); null starts from the filled mark as always
     internal val icon: AppIcon? = null,
+    // the launch animation speed from Customisation: 2 runs it twice as fast, 0.5 at half speed
+    speed: Float = 1f,
 ) {
+    internal val speed = speed.coerceIn(0.25f, 4f)
+
+    /** [millis] at the chosen launch speed */
+    internal fun scaled(millis: Int): Int = (millis / speed).toInt().coerceAtLeast(1)
+
     internal val prelude = Animatable(if (plays && icon != null) 0f else 1f)
     internal val flight = Animatable(if (plays) 0f else 1f)
     internal val rise = Animatable(if (plays) 0f else 1f)
@@ -308,10 +316,8 @@ fun LaunchIntroOverlay(state: LaunchIntroState, essentialsReady: Boolean) {
         withFrameNanos { }
         withFrameNanos { }
         if (state.prelude.value < 1f) {
-            state.prelude.animateTo(1f, tween(PreludeMillis, easing = LinearEasing))
+            state.prelude.animateTo(1f, tween(state.scaled(PreludeMillis), easing = LinearEasing))
         }
-        // Release Home content hold as the brief flight begins so real cached rows appear right away
-        LaunchGate.holdHome = false
         val flightAt = SystemClock.uptimeMillis()
         var worstFrame = 0L
         coroutineScope {
@@ -323,8 +329,8 @@ fun LaunchIntroOverlay(state: LaunchIntroState, essentialsReady: Boolean) {
                     last = now
                 }
             }
-            launch { state.rise.animateTo(1f, tween(RiseTotalMillis, RiseDelayMillis, LinearEasing)) }
-            state.flight.animateTo(1f, tween(FlightMillis, easing = LinearEasing))
+            launch { state.rise.animateTo(1f, tween(state.scaled(RiseTotalMillis), state.scaled(RiseDelayMillis), LinearEasing)) }
+            state.flight.animateTo(1f, tween(state.scaled(FlightMillis), easing = LinearEasing))
             state.landed = true
             watch.cancel()
         }

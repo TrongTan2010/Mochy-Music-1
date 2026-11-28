@@ -655,12 +655,14 @@ class MainActivity : ComponentActivity() {
 
                 // the intro flies the splash mark into Home's logo, so it plays only when Home is first
                 val launchIntro = remember {
-                    val plays = introRequested && (tabOpenedFromShortcut ?: defaultOpenTab) == NavigationTab.HOME
+                    val introOn = dataStore[com.mochyy.mochymusic.constants.LaunchIntroEnabledKey] != false
+                    val plays = introRequested && introOn && (tabOpenedFromShortcut ?: defaultOpenTab) == NavigationTab.HOME
                     introPlays = plays
                     if (introRequested && !plays) LaunchGate.skip()
                     // an anime icon's splash shows the icon itself, so the intro bounces out of it; every other launch starts from the bare mark
                     val icon = com.mochyy.mochymusic.utils.AppIcons.launchedFrom(intent)?.takeIf(com.mochyy.mochymusic.utils.AppIcons::splashShows)
-                    LaunchIntroState(plays, icon)
+                    val speed = dataStore[com.mochyy.mochymusic.constants.LaunchIntroSpeedKey] ?: 1f
+                    LaunchIntroState(plays, icon, speed)
                 }
 
                 val topLevelScreens = remember {
@@ -1440,7 +1442,7 @@ class MainActivity : ComponentActivity() {
 
                     LaunchIntroOverlay(
                         state = launchIntro,
-                        essentialsReady = true,
+                        essentialsReady = playerConnection != null && themeSettled,
                     )
 
                 }
