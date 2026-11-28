@@ -75,8 +75,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -1445,12 +1447,12 @@ fun HomeScreen(
 
                 // nothing but bones while the launch intro plays; the rows reveal once it lands
                 if (!launchHold) {
-                    item(key = "home_soundcloud_banner", contentType = "soundcloud_banner") {
-                        HomeSoundCloudBanner(
-                            onClick = { navController.navigate(com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudRoute) },
-                            modifier = Modifier.padding(horizontal = HomeContentInset),
+                    item(key = "home_soundcloud_shelf", contentType = "soundcloud_shelf") {
+                        HomeSoundCloudShelf(
+                            isPlayingNow = isPlayingNow,
+                            onOpenSoundCloud = { navController.navigate(com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudRoute) },
                         )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(28.dp))
                     }
                 }
                 if (!launchHold) homeSections.forEach { section ->
@@ -1891,8 +1893,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFF5500).copy(alpha = 0.22f))
-                                .border(0.8.dp, Color(0xFFFF5500).copy(alpha = 0.48f), CircleShape)
+                                .background(Color.White.copy(alpha = 0.10f))
                                 .clickable {
                                     navController.navigate(com.mochyy.mochymusic.ui.screens.soundcloud.SoundCloudRoute)
                                 },
@@ -1901,7 +1902,7 @@ fun HomeScreen(
                             Icon(
                                 painter = painterResource(R.drawable.radio),
                                 contentDescription = "SoundCloud",
-                                tint = Color(0xFFFF6A1F),
+                                tint = Color.White.copy(alpha = 0.90f),
                                 modifier = Modifier.size(18.dp),
                             )
                         }
@@ -1958,71 +1959,214 @@ fun HomeScreen(
     }
 }
 
-private val HomeScOrange = Color(0xFFFF5500)
-private val HomeScOrangeSoft = Color(0xFFFF7A33)
-private val HomeScBannerShape = RoundedCornerShape(20.dp)
-private val HomeScIconShape = RoundedCornerShape(12.dp)
-private val HomeScBannerBrush = Brush.horizontalGradient(
-    listOf(HomeScOrange.copy(alpha = 0.24f), Color(0xFF1A1614))
-)
-private val HomeScIconBrush = Brush.linearGradient(listOf(HomeScOrange, HomeScOrangeSoft))
+private object HomeSoundCloudCache {
+    @Volatile var loaded: Boolean = false
+    @Volatile var tracks: List<com.mochyy.mochymusic.modules.soundcloud.SoundCloudTrackItem> = emptyList()
+    @Volatile var subtitle: String? = null
+}
 
 @Composable
-private fun HomeSoundCloudBanner(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+private fun HomeSoundCloudShelf(
+    isPlayingNow: () -> Boolean,
+    onOpenSoundCloud: () -> Unit,
+    modulesViewModel: com.mochyy.mochymusic.viewmodels.ModulesViewModel = androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel(),
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(HomeScBannerShape)
-            .background(HomeScBannerBrush)
-            .border(0.8.dp, HomeScOrange.copy(alpha = 0.36f), HomeScBannerShape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 13.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(HomeScIconShape)
-                .background(HomeScIconBrush),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.radio),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(21.dp),
-            )
+    val playerConnection = LocalPlayerConnection.current
+    val database = com.mochyy.mochymusic.LocalDatabase.current
+    val scope = rememberCoroutineScope()
+    val scModule = remember(modulesViewModel) {
+        modulesViewModel.moduleInstance(com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule.Id)
+            as? com.mochyy.mochymusic.modules.soundcloud.SoundCloudModule
+    }
+
+    var tracks by remember { mutableStateOf(HomeSoundCloudCache.tracks) }
+    var shelfSubtitle by remember { mutableStateOf(HomeSoundCloudCache.subtitle) }
+    var loading by remember { mutableStateOf(!HomeSoundCloudCache.loaded) }
+
+    LaunchedEffect(scModule) {
+        val mod = scModule ?: run {
+            loading = false
+            return@LaunchedEffect
         }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "SoundCloud",
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.5.sp,
-                color = Color.White,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "Đăng nhập, tìm nhạc, thịnh hành & bài đã thích",
-                fontFamily = InterFontFamily,
-                fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.68f),
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            )
+        if (HomeSoundCloudCache.loaded && HomeSoundCloudCache.tracks.isNotEmpty()) {
+            tracks = HomeSoundCloudCache.tracks
+            shelfSubtitle = HomeSoundCloudCache.subtitle
+            loading = false
+            return@LaunchedEffect
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        Icon(
-            painter = painterResource(R.drawable.navigate_next),
-            contentDescription = null,
-            tint = HomeScOrangeSoft,
-            modifier = Modifier.size(20.dp),
+        loading = true
+        val (loadedTracks, loadedLabel) = withContext(Dispatchers.IO) {
+            val liked = if (mod.isUserSignedIn()) {
+                runCatching { mod.fetchLikedTracks(limit = 12) }.getOrDefault(emptyList())
+            } else {
+                emptyList()
+            }
+            if (liked.isNotEmpty()) {
+                liked to "Đã thích"
+            } else {
+                val trending = runCatching { mod.fetchTrendingTracks(limit = 12) }.getOrDefault(emptyList())
+                trending to "Thịnh hành"
+            }
+        }
+        HomeSoundCloudCache.tracks = loadedTracks
+        HomeSoundCloudCache.subtitle = if (loadedTracks.isNotEmpty()) loadedLabel else null
+        HomeSoundCloudCache.loaded = true
+        tracks = loadedTracks
+        shelfSubtitle = HomeSoundCloudCache.subtitle
+        loading = false
+    }
+
+    val mediaMetadataState = playerConnection?.mediaMetadata?.collectAsState()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        HomeSectionTitle(
+            title = "SoundCloud",
+            label = shelfSubtitle,
+            onClick = onOpenSoundCloud,
         )
+
+        when {
+            tracks.isNotEmpty() -> {
+                LazyRow(
+                    state = rememberCardRowState(),
+                    contentPadding = PaddingValues(horizontal = HomeContentInset),
+                    horizontalArrangement = Arrangement.spacedBy(HomeCardSpacing),
+                ) {
+                    itemsIndexed(
+                        items = tracks,
+                        key = { _, item -> "home_sc_${item.id}" },
+                        contentType = { _, _ -> "home_sc_card" },
+                    ) { index, item ->
+                        HomeCoverCard(
+                            title = item.title,
+                            subtitle = item.artist,
+                            thumbnailUrl = item.artworkUrl,
+                            isActive = "SC_${item.id}" == mediaMetadataState?.value?.id,
+                            isPlaying = isPlayingNow,
+                            modifier = Modifier.clickable(
+                                interactionSource = null,
+                                indication = HomeCardHighlight,
+                            ) {
+                                val conn = playerConnection ?: return@clickable
+                                val metadataList = tracks.map { t ->
+                                    com.mochyy.mochymusic.models.MediaMetadata(
+                                        id = "SC_${t.id}",
+                                        title = t.title,
+                                        artists = listOf(com.mochyy.mochymusic.models.MediaMetadata.Artist(id = null, name = t.artist)),
+                                        duration = (t.durationMs / 1000L).toInt().coerceAtLeast(0),
+                                        thumbnailUrl = t.artworkUrl,
+                                    )
+                                }
+                                metadataList.getOrNull(index)?.let { chosen ->
+                                    scope.launch(Dispatchers.IO) {
+                                        runCatching { database.query { insert(chosen) } }
+                                    }
+                                }
+                                conn.playQueue(
+                                    ListQueue(
+                                        title = "SoundCloud",
+                                        items = metadataList.map { it.toMediaItem() },
+                                        startIndex = index,
+                                    )
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
+            loading -> {
+                val cardSize = com.mochyy.mochymusic.ui.component.homeCardSize()
+                val coverShape = RoundedCornerShape(HomeCardCornerRadius)
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = HomeContentInset),
+                    horizontalArrangement = Arrangement.spacedBy(HomeCardSpacing),
+                    userScrollEnabled = false,
+                ) {
+                    items(4) {
+                        Column(modifier = Modifier.width(cardSize)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(cardSize)
+                                    .clip(coverShape)
+                                    .background(Color(0xFF1C1C1E)),
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.75f)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFF1C1C1E)),
+                            )
+                            Spacer(modifier = Modifier.height(5.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.50f)
+                                    .height(10.dp)
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(Color(0xFF1C1C1E).copy(alpha = 0.7f)),
+                            )
+                        }
+                    }
+                }
+            }
+
+            else -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = HomeContentInset)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF1C1C1E))
+                        .clickable(onClick = onOpenSoundCloud)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF26262A)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.radio),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Mở SoundCloud",
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Tìm nhạc, bảng xếp hạng & bài đã thích",
+                            fontFamily = InterFontFamily,
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.58f),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_chevron_right),
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.55f),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
     }
 }
