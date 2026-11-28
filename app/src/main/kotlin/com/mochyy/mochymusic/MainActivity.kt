@@ -1589,6 +1589,11 @@ class MainActivity : ComponentActivity() {
                             ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultBgDimAlpha,
                         customBgApplyApp = prefs[com.mochyy.mochymusic.constants.CustomBgApplyAppKey] ?: true,
                         customBgApplyPlayer = prefs[com.mochyy.mochymusic.constants.CustomBgApplyPlayerKey] ?: true,
+                        miniShowLike = prefs[com.mochyy.mochymusic.constants.MiniShowLikeKey] ?: true,
+                        miniShowLyrics = prefs[com.mochyy.mochymusic.constants.MiniShowLyricsKey] ?: true,
+                        miniSpinCover = prefs[com.mochyy.mochymusic.constants.MiniSpinCoverKey] ?: true,
+                        miniShowVisualizer = prefs[com.mochyy.mochymusic.constants.MiniShowVisualizerKey] ?: true,
+                        miniShowProgress = prefs[com.mochyy.mochymusic.constants.MiniShowProgressKey] ?: true,
                     )
                 }
                 .distinctUntilChanged()
@@ -1610,6 +1615,11 @@ class MainActivity : ComponentActivity() {
                     com.mochyy.mochymusic.ui.component.UiCustomTheme.bgDimAlpha = look.customBgDim.coerceIn(0.15f, 0.85f)
                     com.mochyy.mochymusic.ui.component.UiCustomTheme.applyBgToApp = look.customBgApplyApp
                     com.mochyy.mochymusic.ui.component.UiCustomTheme.applyBgToPlayer = look.customBgApplyPlayer
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowLike = look.miniShowLike
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowLyrics = look.miniShowLyrics
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.miniSpinCover = look.miniSpinCover
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowVisualizer = look.miniShowVisualizer
+                    com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowProgress = look.miniShowProgress
                 }
         }
     }
@@ -1629,6 +1639,11 @@ class MainActivity : ComponentActivity() {
         val customBgDim: Float,
         val customBgApplyApp: Boolean,
         val customBgApplyPlayer: Boolean,
+        val miniShowLike: Boolean,
+        val miniShowLyrics: Boolean,
+        val miniSpinCover: Boolean,
+        val miniShowVisualizer: Boolean,
+        val miniShowProgress: Boolean,
     )
 
     // people who had the old lyrics shader switch off land on the matching shaderless lyric style, once (off main thread)

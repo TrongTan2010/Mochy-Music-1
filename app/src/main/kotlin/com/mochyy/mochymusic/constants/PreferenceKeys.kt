@@ -1446,3 +1446,10 @@ val CustomBgBlurKey = floatPreferencesKey("customBgBlur")
 val CustomBgDimKey = floatPreferencesKey("customBgDim")
 val CustomBgApplyAppKey = booleanPreferencesKey("customBgApplyApp")
 val CustomBgApplyPlayerKey = booleanPreferencesKey("customBgApplyPlayer")
+
+// Mini-Player feature customization keys
+val MiniShowLikeKey = booleanPreferencesKey("miniShowLike")
+val MiniShowLyricsKey = booleanPreferencesKey("miniShowLyrics")
+val MiniSpinCoverKey = booleanPreferencesKey("miniSpinCover")
+val MiniShowVisualizerKey = booleanPreferencesKey("miniShowVisualizer")
+val MiniShowProgressKey = booleanPreferencesKey("miniShowProgress")

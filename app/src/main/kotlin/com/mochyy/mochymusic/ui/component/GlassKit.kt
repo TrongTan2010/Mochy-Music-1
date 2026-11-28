@@ -241,6 +241,13 @@ object UiCustomTheme {
     var bgDimAlpha by mutableFloatStateOf(DefaultBgDimAlpha)
     var applyBgToApp by mutableStateOf(true)
     var applyBgToPlayer by mutableStateOf(true)
+
+    // Mini-Player feature toggles (all live reactive)
+    var miniShowLike by mutableStateOf(true)
+    var miniShowLyrics by mutableStateOf(true)
+    var miniSpinCover by mutableStateOf(true)
+    var miniShowVisualizer by mutableStateOf(true)
+    var miniShowProgress by mutableStateOf(true)
 }
 
 /**

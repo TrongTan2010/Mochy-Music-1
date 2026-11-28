@@ -370,7 +370,8 @@ private fun Modifier.morphLayout(
             floatArrayOf(skipX, skipY, -1f, -1f)
         }
         MorphElement.PREVIOUS -> {
-            val previousX = lerpF(endpointsPx.miniPrevXPx, endpointsPx.fullPlayXPx - 80f, p)
+            val endShift = endpointsPx.dockEndShiftPx()
+            val previousX = lerpF(endpointsPx.miniPrevXPx - endShift, endpointsPx.fullPlayXPx - 80f, p)
             val previousY = lerpF(endpointsPx.miniSkipYPx, endpointsPx.fullPlayYPx, p)
             floatArrayOf(previousX, previousY, -1f, -1f)
         }
@@ -378,10 +379,14 @@ private fun Modifier.morphLayout(
             val shift = endpointsPx.dockShiftPx()
             val endShift = endpointsPx.dockEndShiftPx()
             val threeSlot = endpointsPx.compactThreeSlot()
+            val dockCollapsed = (shift > 1f).let { if (it) (shift / (58f * endpointsPx.dpPx)).coerceIn(0f, 1f) else 0f }
             val skipBonus = (endpointsPx.miniSkipXPx - endpointsPx.miniPlayXPx) * threeSlot
+            val likeBonus = if (com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowLike) {
+                (endpointsPx.miniPlayXPx - endpointsPx.miniPrevXPx) * dockCollapsed
+            } else 0f
             val textX = lerpF(endpointsPx.miniTextXPx + shift, endpointsPx.fullTextXPx, p) + hOffset
             val textY = lerpF(0f, endpointsPx.fullTextYPx + endpointsPx.coverOffset(), p)
-            val miniWidth = (endpointsPx.miniTextWidthPx - shift - endShift + skipBonus).coerceAtLeast(48f)
+            val miniWidth = (endpointsPx.miniTextWidthPx - shift - endShift + skipBonus + likeBonus).coerceAtLeast(48f)
             val textW = lerpF(miniWidth, endpointsPx.fullTextWidthPx, p)
             floatArrayOf(textX, textY, textW, endpointsPx.miniHeightPx)
         }
@@ -526,7 +531,26 @@ fun MorphingCover(
         label = "miniArtWidth"
     )
 
-    val endpoints = remember(maxWidth, maxHeight, statusBarTop, coverStyle, animatedMiniArtWidth, pillFrame) {
+    val miniShowLike = com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowLike
+    val miniSpinCover = com.mochyy.mochymusic.ui.component.UiCustomTheme.miniSpinCover
+
+    // Smoothly rotates the circular Mini-Player cover like a tiny record while playing & collapsed
+    val miniSpinAngle = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    LaunchedEffect(isPlaying, miniSpinCover, isVideoActive) {
+        if (!isPlaying || !miniSpinCover || isVideoActive) return@LaunchedEffect
+        var lastNs = 0L
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { now ->
+                if (progressProvider() < 0.08f && lastNs != 0L) {
+                    val dtSec = (now - lastNs) / 1_000_000_000f
+                    miniSpinAngle.floatValue = (miniSpinAngle.floatValue + dtSec * 32f) % 360f
+                }
+                lastNs = now
+            }
+        }
+    }
+
+    val endpoints = remember(maxWidth, maxHeight, statusBarTop, coverStyle, animatedMiniArtWidth, pillFrame, miniShowLike) {
         val miniHeight = pillFrame.height
         val miniArtWidth = animatedMiniArtWidth
         val miniArtHeight = 44.dp * miniScale
@@ -543,7 +567,7 @@ fun MorphingCover(
         val miniPrevX = miniPlayX - 8.dp - miniSkipSize
 
         val miniTextX = miniArtX + miniArtWidth + 12.dp
-        val firstButtonX = if (pillFrame.withPrevious) miniPrevX else miniPlayX
+        val firstButtonX = if (pillFrame.withPrevious || miniShowLike) miniPrevX else miniPlayX
         val miniTextWidth = (firstButtonX - 10.dp - miniTextX).coerceAtLeast(0.dp)
 
         val artBox = coverArtBox(coverStyle, maxWidth, maxHeight, statusBarTop)
@@ -891,6 +915,12 @@ fun MorphingCover(
 
                         scaleX = animatedPauseScale
                         scaleY = animatedPauseScale
+                        val spinWeight = if (miniSpinCover && !isVideoActive) (1f - p / 0.14f).coerceIn(0f, 1f) else 0f
+                        if (spinWeight > 0.001f) {
+                            val rawAngle = miniSpinAngle.floatValue
+                            val normAngle = if (rawAngle > 180f) rawAngle - 360f else rawAngle
+                            rotationZ = normAngle * spinWeight
+                        }
                         // A colour filter on a layer forces it offscreen - the whole cover rendered
                         // into a buffer of its own every frame of the morph. While playing the
                         // matrix is the identity anyway, so it's only set while the cover is
@@ -1226,6 +1256,13 @@ fun MorphingCover(
 
             if (pillFrame.withPrevious) {
                 MiniPreviousButton(progressProvider = progressProvider, endpointsPx = endpointsPx, size = miniPlaySize)
+            } else if (miniShowLike) {
+                MiniLikeButton(
+                    progressProvider = progressProvider,
+                    endpointsPx = endpointsPx,
+                    size = miniPlaySize,
+                    dockCollapse = dockCollapse,
+                )
             }
 
             Box(
@@ -1427,11 +1464,17 @@ private fun MiniSongInfo(
     ) {
         // the leaving and arriving songs' lines ride the row with the cover
         if (carousel == null) {
-            MiniSongLines(trackInfo.title, trackInfo.artist, trackInfo.album, Modifier)
+            MiniSongLines(trackInfo.title, trackInfo.artist, trackInfo.album, Modifier, isActiveSlot = true)
         } else {
             for (slot in rememberTextSlots(carousel)) {
                 key(slot.uid) {
-                    MiniSongLines(slot.title, slot.artist, slot.album, Modifier.carouselText(carousel, slot))
+                    MiniSongLines(
+                        title = slot.title,
+                        artist = slot.artist,
+                        album = slot.album,
+                        modifier = Modifier.carouselText(carousel, slot),
+                        isActiveSlot = slot.step == carousel.step,
+                    )
                 }
             }
         }
@@ -1439,25 +1482,92 @@ private fun MiniSongInfo(
 }
 
 @Composable
-private fun MiniSongLines(title: String, artist: String, album: String, modifier: Modifier) {
+private fun MiniLikeButton(
+    progressProvider: () -> Float,
+    endpointsPx: MorphEndpointsPx,
+    size: Dp,
+    dockCollapse: () -> Float,
+) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    val isLiked = currentSong?.song?.liked == true
+    val heartScale by animateFloatAsState(
+        targetValue = if (isLiked) 1.08f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 420f),
+        label = "miniLikeBounce",
+    )
+    Box(
+        modifier = Modifier
+            .morphLayout(
+                progressProvider = progressProvider,
+                horizontalOffsetProvider = { 0f },
+                endpointsPx = endpointsPx,
+                element = MorphElement.PREVIOUS,
+            )
+            .requiredSize(size)
+            .graphicsLayer {
+                val p = progressProvider()
+                val collapseHide = (1f - dockCollapse().coerceIn(0f, 1f) * 2.4f).coerceIn(0f, 1f)
+                val s = (1f + p * 0.6f) * (0.72f + 0.28f * collapseHide) * heartScale
+                scaleX = s
+                scaleY = s
+                alpha = (1f - (p / 0.45f)).coerceIn(0f, 1f) * collapseHide
+            }
+    ) {
+        MiniPlayerButton(
+            onClick = {
+                if (dockCollapse() < 0.4f) playerConnection.service.toggleLike()
+            },
+        ) {
+            Icon(
+                painter = painterResource(if (isLiked) R.drawable.favorite else R.drawable.favorite_border),
+                contentDescription = "Yêu thích",
+                tint = if (isLiked) com.mochyy.mochymusic.ui.component.AppleMusicAccent else Color.White.copy(alpha = 0.78f),
+                modifier = Modifier.size(19.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MiniSongLines(
+    title: String,
+    artist: String,
+    album: String,
+    modifier: Modifier,
+    isActiveSlot: Boolean = true,
+) {
+    val showVisualizer = com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowVisualizer
+    val showLyrics = com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowLyrics
     Column(
         modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight(Alignment.CenterVertically),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White,
-            maxLines = 1,
-            softWrap = false,
-        )
+        androidx.compose.foundation.layout.Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (isActiveSlot && showVisualizer) {
+                MiniAudioVisualizerBars()
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
         val subtitle = listOf(artist, album)
             .filter { it.isNotBlank() }
             .joinToString(" · ")
-        if (subtitle.isNotBlank()) {
+        if (isActiveSlot && showLyrics) {
+            MiniLiveLyricsSubtitle(fallbackSubtitle = subtitle)
+        } else if (subtitle.isNotBlank()) {
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
@@ -1469,15 +1579,96 @@ private fun MiniSongLines(title: String, artist: String, album: String, modifier
     }
 }
 
+/** 3-bar dancing Apple Music equalizer indicator inside the Mini-Player. */
+@Composable
+private fun MiniAudioVisualizerBars() {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
+    val phase = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) return@LaunchedEffect
+        var lastNs = 0L
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { now ->
+                if (lastNs != 0L) {
+                    phase.floatValue = (phase.floatValue + (now - lastNs) / 1_000_000_000f * 6.5f) % 62.83185f
+                }
+                lastNs = now
+            }
+        }
+    }
+    val accent = com.mochyy.mochymusic.ui.component.AppleMusicAccent
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 11.dp, height = 11.dp)) {
+        val barW = 2.2.dp.toPx()
+        val gap = (size.width - barW * 3f) / 2f
+        val p = phase.floatValue
+        val heights = if (isPlaying) {
+            floatArrayOf(
+                0.35f + 0.62f * kotlin.math.abs(kotlin.math.sin(p)),
+                0.30f + 0.70f * kotlin.math.abs(kotlin.math.sin(p * 1.25f + 1.4f)),
+                0.35f + 0.58f * kotlin.math.abs(kotlin.math.sin(p * 0.9f + 2.7f)),
+            )
+        } else {
+            floatArrayOf(0.28f, 0.45f, 0.28f)
+        }
+        for (i in 0..2) {
+            val h = (size.height * heights[i]).coerceAtLeast(barW)
+            val x = i * (barW + gap)
+            drawRoundRect(
+                color = if (isPlaying) accent else Color.White.copy(alpha = 0.45f),
+                topLeft = Offset(x, size.height - h),
+                size = androidx.compose.ui.geometry.Size(barW, h),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(barW / 2f, barW / 2f),
+            )
+        }
+    }
+}
+
+/** Shows the currently sung synced lyric line on the Mini-Player subtitle, smoothly falling back to Artist · Album. */
+@Composable
+private fun MiniLiveLyricsSubtitle(fallbackSubtitle: String) {
+    val playerConnection = LocalPlayerConnection.current
+    val lyricsEntity = playerConnection?.currentLyrics?.collectAsState(initial = null)?.value
+    val progressState = playerConnection?.uiState?.progressState?.collectAsState()?.value
+    val isPlaying = playerConnection?.isEffectivelyPlaying?.collectAsState()?.value == true
+    val raw = lyricsEntity?.lyrics
+    val parsedLines = remember(raw) {
+        if (raw.isNullOrBlank() || raw == com.mochyy.mochymusic.db.entities.LyricsEntity.LYRICS_NOT_FOUND) {
+            emptyList()
+        } else {
+            runCatching { com.mochyy.mochymusic.lyrics.LyricsUtils.parseLyricsCached(raw) }.getOrDefault(emptyList())
+        }
+    }
+    val posMs = (progressState?.position ?: 0L) + (playerConnection?.lyricsOffsetMs?.value?.toLong() ?: 0L)
+    val activeLyric = if (isPlaying && parsedLines.size >= 2) {
+        val idx = parsedLines.indexOfLast { it.time <= posMs }
+        if (idx >= 0) parsedLines[idx].text.trim().takeIf { it.isNotEmpty() } else null
+    } else null
+
+    val shownText = activeLyric ?: fallbackSubtitle
+    if (shownText.isNotBlank()) {
+        val isLyric = activeLyric != null
+        Text(
+            text = if (isLyric) "♪ $shownText" else shownText,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = if (isLyric) FontWeight.Medium else FontWeight.Normal,
+            color = if (isLyric) Color.White.copy(alpha = 0.88f) else Color.White.copy(alpha = 0.65f),
+            maxLines = 1,
+            softWrap = false,
+        )
+    }
+}
+
 /**
- * Subtle Apple Music iOS 18 progress bar hugging the bottom inner curve of the floating MiniPlayer capsule.
- * Isolated in its own composable so playback position ticks never recompose [MorphingCover].
+ * Luminous Apple Music progress bar hugging the bottom inner curve of the floating MiniPlayer capsule
+ * with an accent gradient tail and subtle glowing playhead spark.
  */
 @Composable
 private fun MiniPlayerProgressLine(
     progressProvider: () -> Float,
     pillFrame: com.mochyy.mochymusic.ui.component.MiniPillFrame,
 ) {
+    if (!com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowProgress) return
     val playerConnection = LocalPlayerConnection.current ?: return
     val visible by remember { derivedStateOf { progressProvider() < 0.25f } }
     if (!visible) return
@@ -1486,6 +1677,7 @@ private fun MiniPlayerProgressLine(
         (progressState.position.toFloat() / progressState.duration.toFloat()).coerceIn(0f, 1f)
     } else 0f
 
+    val accent = com.mochyy.mochymusic.ui.component.AppleMusicAccent
     val dockCollapse = com.mochyy.mochymusic.ui.component.LocalDockCollapseProgress.current
     val showCollapsedSearch = com.mochyy.mochymusic.ui.component.LocalDockCollapsedSearchEnabled.current
     androidx.compose.foundation.Canvas(
@@ -1507,7 +1699,7 @@ private fun MiniPlayerProgressLine(
         val rightInset = (pillFrame.end + 28.dp).toPx() + extraEnd
         val barWidth = (size.width - leftInset - rightInset).coerceAtLeast(0f)
         if (barWidth <= 0f) return@Canvas
-        val barHeight = 2.dp.toPx()
+        val barHeight = 2.4.dp.toPx()
         val barTop = size.height - barHeight - 2.5.dp.toPx()
         val cr = androidx.compose.ui.geometry.CornerRadius(barHeight / 2f, barHeight / 2f)
 
@@ -1518,11 +1710,32 @@ private fun MiniPlayerProgressLine(
             cornerRadius = cr,
         )
         if (fraction > 0.001f) {
+            val fillW = barWidth * fraction
             drawRoundRect(
-                color = com.mochyy.mochymusic.ui.component.AppleMusicAccent,
+                brush = Brush.horizontalGradient(
+                    0f to accent.copy(alpha = 0.72f),
+                    0.82f to accent,
+                    1f to Color.White.copy(alpha = 0.95f),
+                    startX = leftInset,
+                    endX = leftInset + fillW,
+                ),
                 topLeft = Offset(leftInset, barTop),
-                size = androidx.compose.ui.geometry.Size(barWidth * fraction, barHeight),
+                size = androidx.compose.ui.geometry.Size(fillW, barHeight),
                 cornerRadius = cr,
+            )
+            // Soft luminous glow tip at the active playhead
+            val tipCenter = Offset(leftInset + fillW, barTop + barHeight / 2f)
+            val glowR = 5.5.dp.toPx()
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to Color.White.copy(alpha = 0.85f),
+                    0.45f to accent.copy(alpha = 0.50f),
+                    1f to Color.Transparent,
+                    center = tipCenter,
+                    radius = glowR,
+                ),
+                radius = glowR,
+                center = tipCenter,
             )
         }
     }

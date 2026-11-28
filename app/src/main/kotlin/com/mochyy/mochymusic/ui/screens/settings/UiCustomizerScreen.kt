@@ -49,6 +49,11 @@ import com.mochyy.mochymusic.constants.CustomDockCornerKey
 import com.mochyy.mochymusic.constants.CustomGlassOpacityKey
 import com.mochyy.mochymusic.constants.CustomLyricsGlowKey
 import com.mochyy.mochymusic.constants.CustomPlayerCoverCornerKey
+import com.mochyy.mochymusic.constants.MiniShowLikeKey
+import com.mochyy.mochymusic.constants.MiniShowLyricsKey
+import com.mochyy.mochymusic.constants.MiniShowProgressKey
+import com.mochyy.mochymusic.constants.MiniShowVisualizerKey
+import com.mochyy.mochymusic.constants.MiniSpinCoverKey
 import com.mochyy.mochymusic.ui.component.DefaultPlayerSeekBarSlider
 import com.mochyy.mochymusic.ui.component.SettingsItem
 import com.mochyy.mochymusic.ui.component.SubSettingsScaffold
@@ -92,6 +97,12 @@ fun UiCustomizerScreen(navController: NavController) {
     var bgDim by rememberPreference(CustomBgDimKey, UiCustomTheme.DefaultBgDimAlpha)
     var applyBgApp by rememberPreference(CustomBgApplyAppKey, true)
     var applyBgPlayer by rememberPreference(CustomBgApplyPlayerKey, true)
+
+    var miniShowLike by rememberPreference(MiniShowLikeKey, true)
+    var miniShowLyrics by rememberPreference(MiniShowLyricsKey, true)
+    var miniSpinCover by rememberPreference(MiniSpinCoverKey, true)
+    var miniShowVisualizer by rememberPreference(MiniShowVisualizerKey, true)
+    var miniShowProgress by rememberPreference(MiniShowProgressKey, true)
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -359,7 +370,69 @@ fun UiCustomizerScreen(navController: NavController) {
             ),
         )
 
-        // 4. Reset
+        // 4. Mini-Player features
+        SettingsSection(
+            title = "Tính năng Mini-Player",
+            items = listOf(
+                switchItem(
+                    key = "Mini player quick like",
+                    title = "Nút Tim nhanh",
+                    description = "Thả tim trực tiếp ngay trên thanh Mini-Player",
+                    icon = painterResource(R.drawable.favorite),
+                    checked = miniShowLike,
+                    onCheckedChange = {
+                        miniShowLike = it
+                        UiCustomTheme.miniShowLike = it
+                    },
+                ),
+                switchItem(
+                    key = "Mini player live lyrics",
+                    title = "Lời bài hát trực tiếp",
+                    description = "Hiển thị dòng lyric đồng bộ đang hát ở dòng phụ",
+                    icon = painterResource(R.drawable.lyrics),
+                    checked = miniShowLyrics,
+                    onCheckedChange = {
+                        miniShowLyrics = it
+                        UiCustomTheme.miniShowLyrics = it
+                    },
+                ),
+                switchItem(
+                    key = "Mini player spin cover",
+                    title = "Xoay tròn ảnh bìa",
+                    description = "Đĩa bìa quay mượt mà như đĩa than khi đang phát",
+                    icon = painterResource(R.drawable.album),
+                    checked = miniSpinCover,
+                    onCheckedChange = {
+                        miniSpinCover = it
+                        UiCustomTheme.miniSpinCover = it
+                    },
+                ),
+                switchItem(
+                    key = "Mini player equalizer bars",
+                    title = "Sóng nhạc Equalizer mini",
+                    description = "3 cột sóng nhạc nhảy theo nhịp cạnh tên bài hát",
+                    icon = painterResource(R.drawable.tune),
+                    checked = miniShowVisualizer,
+                    onCheckedChange = {
+                        miniShowVisualizer = it
+                        UiCustomTheme.miniShowVisualizer = it
+                    },
+                ),
+                switchItem(
+                    key = "Mini player glowing progress",
+                    title = "Thanh tiến trình phát sáng",
+                    description = "Đường tiến độ gradient có điểm sáng ở cạnh đáy",
+                    icon = painterResource(R.drawable.play),
+                    checked = miniShowProgress,
+                    onCheckedChange = {
+                        miniShowProgress = it
+                        UiCustomTheme.miniShowProgress = it
+                    },
+                ),
+            ),
+        )
+
+        // 5. Reset
         SettingsSection(
             title = null,
             items = listOf(
@@ -378,6 +451,11 @@ fun UiCustomizerScreen(navController: NavController) {
                         bgDim = UiCustomTheme.DefaultBgDimAlpha
                         applyBgApp = true
                         applyBgPlayer = true
+                        miniShowLike = true
+                        miniShowLyrics = true
+                        miniSpinCover = true
+                        miniShowVisualizer = true
+                        miniShowProgress = true
                         if (bgPath.isNotBlank()) {
                             val old = File(bgPath)
                             bgPath = ""
@@ -393,6 +471,11 @@ fun UiCustomizerScreen(navController: NavController) {
                         UiCustomTheme.bgDimAlpha = UiCustomTheme.DefaultBgDimAlpha
                         UiCustomTheme.applyBgToApp = true
                         UiCustomTheme.applyBgToPlayer = true
+                        UiCustomTheme.miniShowLike = true
+                        UiCustomTheme.miniShowLyrics = true
+                        UiCustomTheme.miniSpinCover = true
+                        UiCustomTheme.miniShowVisualizer = true
+                        UiCustomTheme.miniShowProgress = true
                         Toast.makeText(context, "Đã khôi phục giao diện mặc định", Toast.LENGTH_SHORT).show()
                     },
                 ),
