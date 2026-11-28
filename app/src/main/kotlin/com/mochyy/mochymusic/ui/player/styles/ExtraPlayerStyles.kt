@@ -1007,27 +1007,41 @@ private fun SharedCapsuleSeekBar(
                     } else Modifier
                 ),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(trackHeight)
-                    .drawBehind {
-                        val cr = CornerRadius(size.height / 2f, size.height / 2f)
-                        drawRoundRect(
-                            color = Color.White.copy(alpha = 0.22f),
-                            size = size,
-                            cornerRadius = cr,
-                        )
-                        val fillW = (size.width * shownFraction).coerceIn(0f, size.width)
-                        if (fillW > 0f) {
+            val useM3Wave = UiCustomTheme.miniWavyProgress
+            val playingNow = LocalPlayerConnection.current?.isEffectivelyPlaying?.collectAsState()?.value == true
+            if (useM3Wave) {
+                com.mochyy.mochymusic.ui.component.SeekBarTrack(
+                    style = com.mochyy.mochymusic.ui.component.SeekBarStyle.M3_EXPRESSIVE_LINE,
+                    fraction = shownFraction,
+                    activeColor = activeColor,
+                    inactiveColor = Color.White.copy(alpha = 0.22f),
+                    animateWave = (playingNow || preview) && !dragging,
+                    active = dragging,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(trackHeight)
+                        .drawBehind {
+                            val cr = CornerRadius(size.height / 2f, size.height / 2f)
                             drawRoundRect(
-                                color = activeColor,
-                                size = Size(fillW, size.height),
+                                color = Color.White.copy(alpha = 0.22f),
+                                size = size,
                                 cornerRadius = cr,
                             )
-                        }
-                    },
-            )
+                            val fillW = (size.width * shownFraction).coerceIn(0f, size.width)
+                            if (fillW > 0f) {
+                                drawRoundRect(
+                                    color = activeColor,
+                                    size = Size(fillW, size.height),
+                                    cornerRadius = cr,
+                                )
+                            }
+                        },
+                )
+            }
         }
         Spacer(Modifier.height(4.dp))
         Row(

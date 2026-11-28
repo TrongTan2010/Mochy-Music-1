@@ -147,10 +147,18 @@ fun PlayerProgressSlider(
     }
     val transport = playerConnection.uiState.transportState.collectAsState()
     val transportState = transport.value
-    val seekBarStyle by com.mochyy.mochymusic.utils.rememberEnumPreference(
+    val storedSeekBarStyle by com.mochyy.mochymusic.utils.rememberEnumPreference(
         com.mochyy.mochymusic.constants.SeekBarStyleKey,
         com.mochyy.mochymusic.ui.component.SeekBarStyle.DEFAULT,
     )
+    val seekBarStyle = if (
+        storedSeekBarStyle == com.mochyy.mochymusic.ui.component.SeekBarStyle.DEFAULT &&
+        com.mochyy.mochymusic.ui.component.UiCustomTheme.miniWavyProgress
+    ) {
+        com.mochyy.mochymusic.ui.component.SeekBarStyle.M3_EXPRESSIVE_LINE
+    } else {
+        storedSeekBarStyle
+    }
 
     // The Material 3 bars follow the artwork palette; the plain and default bars stay white so
     // they keep working over any cover.
