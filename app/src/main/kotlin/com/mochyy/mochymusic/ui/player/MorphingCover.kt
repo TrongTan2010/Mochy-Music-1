@@ -769,6 +769,15 @@ fun MorphingCover(
             pureBlack = pureBlack,
         )
 
+        MiniM3TonalWave(
+            progressProvider = progressProvider,
+            dockShiftPx = endpointsPx.dockShiftPx,
+            dockEndShiftPx = endpointsPx.dockEndShiftPx,
+            fullWidthPx = endpointsPx.fullWidthPx,
+            pillFrame = pillFrame,
+            isPlaying = isPlaying,
+        )
+
         // a look's own mini player draws in the pill in place of mochy's words and buttons; the cover stays mochy's, so it still grows into the player
         val moduleMini = com.mochyy.mochymusic.modules.skin.ActiveSkin.mini?.takeIf { !pillFrame.merged }
         if (moduleMini != null) {
@@ -1579,7 +1588,7 @@ private fun MiniSongLines(
         modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight(Alignment.CenterVertically)
-            .padding(bottom = if (showProgress) 3.dp else 0.dp),
+            .padding(bottom = if (showProgress) 5.dp else 0.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         androidx.compose.foundation.layout.Row(
