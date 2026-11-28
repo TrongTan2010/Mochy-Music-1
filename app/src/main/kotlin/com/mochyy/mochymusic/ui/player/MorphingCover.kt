@@ -771,17 +771,6 @@ fun MorphingCover(
             pureBlack = pureBlack,
         )
 
-        if (!pillFrame.merged) {
-            MiniPlayerBackgroundWaves(
-                progressProvider = progressProvider,
-                dockShiftPx = endpointsPx.dockShiftPx,
-                dockEndShiftPx = endpointsPx.dockEndShiftPx,
-                fullWidthPx = endpointsPx.fullWidthPx,
-                pillFrame = pillFrame,
-                isPlaying = isPlaying,
-            )
-        }
-
         // a look's own mini player draws in the pill in place of mochy's words and buttons; the cover stays mochy's, so it still grows into the player
         val moduleMini = com.mochyy.mochymusic.modules.skin.ActiveSkin.mini?.takeIf { !pillFrame.merged }
         if (moduleMini != null) {
@@ -913,17 +902,6 @@ fun MorphingCover(
         // where the style itself shows. It stays composed above that, at alpha 0: built at 42% it was
         // a heavy frame in the middle of every close, and dropped there in the middle of every open.
         if (trackInfo.thumbnailUrl != null || isDiscStyle) {
-            if (!pillFrame.merged) {
-                MiniCoverSonicRipples(
-                    progressProvider = progressProvider,
-                    centerProvider = {
-                        val rect = endpointsPx.artRect(progressProvider(), horizontalOffsetProvider(), lyricsProgressProvider())
-                        Offset(rect[0] + rect[2] / 2f, rect[1] + rect[3] / 2f)
-                    },
-                    baseRadiusPx = endpointsPx.miniArtHeightPx / 2f,
-                    isPlaying = isPlaying,
-                )
-            }
             Box(
                 modifier = Modifier
                     .morphLayout(
@@ -1442,7 +1420,7 @@ private val MiniSkipWidth = 19.dp
 private val MiniIconSwap = (fadeIn(tween(160)) + scaleIn(tween(220, easing = FastOutSlowInEasing), initialScale = 0.6f)) togetherWith
     (fadeOut(tween(120)) + scaleOut(tween(160), targetScale = 0.6f))
 
-// one of the mini player's buttons: generous hit target, tactile haptic feedback, round highlight & shockwave ring on tap
+// one of the mini player's buttons: generous hit target, tactile haptic feedback & round highlight on tap
 @Composable
 private fun MiniPlayerButton(
     onClick: () -> Unit,
@@ -1450,7 +1428,6 @@ private fun MiniPlayerButton(
 ) {
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val haptic = LocalHapticFeedback.current
-    var wavePulse by remember { mutableIntStateOf(0) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1459,14 +1436,12 @@ private fun MiniPlayerButton(
                 interactionSource = interactionSource,
                 indication = MiniButtonHighlight,
                 onClick = {
-                    wavePulse++
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onClick()
                 },
             ),
         contentAlignment = Alignment.Center,
     ) {
-        MiniButtonWaveOverlay(triggerCount = wavePulse)
         icon()
     }
 }
@@ -2239,20 +2214,6 @@ private fun SheetBackdrop(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(TurntableDim)
-                )
-            }
-            val playerConn = LocalPlayerConnection.current
-            val wavePlaying = playerConn?.isEffectivelyPlaying?.collectAsState()?.value == true
-            val waveVisible by remember { derivedStateOf { progressProvider() > 0.35f && lyricsProgressProvider() < 0.5f } }
-            if (waveVisible) {
-                FullPlayerAuroraWaves(
-                    isPlaying = wavePlaying,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            alpha = ((progressProvider() - 0.35f) / 0.45f).coerceIn(0f, 1f) *
-                                (1f - lyricsProgressProvider() * 2f).coerceIn(0f, 1f)
-                        },
                 )
             }
         }

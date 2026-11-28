@@ -1453,11 +1453,4 @@ val MiniShowLyricsKey = booleanPreferencesKey("miniShowLyrics")
 val MiniSpinCoverKey = booleanPreferencesKey("miniSpinCover")
 val MiniShowVisualizerKey = booleanPreferencesKey("miniShowVisualizer")
 val MiniShowProgressKey = booleanPreferencesKey("miniShowProgress")
-
-// Wave effects customization keys
-val MiniShowBgWaveKey = booleanPreferencesKey("miniShowBgWave")
-val MiniShowCoverWaveKey = booleanPreferencesKey("miniShowCoverWave")
 val MiniWavyProgressKey = booleanPreferencesKey("miniWavyProgress")
-val PlayerShowWaveKey = booleanPreferencesKey("playerShowWave")
-val MiniWaveStyleKey = stringPreferencesKey("miniWaveStyle")
-val MiniWaveIntensityKey = floatPreferencesKey("miniWaveIntensity")

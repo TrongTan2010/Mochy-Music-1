@@ -148,11 +148,6 @@ internal fun AppleMusicPlayerStyle(
                         .fillMaxSize()
                         .background(AppleBackdropScrim),
                 )
-                com.mochyy.mochymusic.ui.player.FullPlayerAuroraWaves(
-                    isPlaying = isPlaying,
-                    preview = preview,
-                    modifier = Modifier.fillMaxSize(),
-                )
             }
         },
     ) { landscape, _, _ ->

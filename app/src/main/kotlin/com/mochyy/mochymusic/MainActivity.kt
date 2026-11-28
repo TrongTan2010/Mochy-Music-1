@@ -1594,14 +1594,7 @@ class MainActivity : ComponentActivity() {
                         miniSpinCover = prefs[com.mochyy.mochymusic.constants.MiniSpinCoverKey] ?: true,
                         miniShowVisualizer = prefs[com.mochyy.mochymusic.constants.MiniShowVisualizerKey] ?: true,
                         miniShowProgress = prefs[com.mochyy.mochymusic.constants.MiniShowProgressKey] ?: true,
-                        miniShowBgWave = prefs[com.mochyy.mochymusic.constants.MiniShowBgWaveKey] ?: true,
-                        miniShowCoverWave = prefs[com.mochyy.mochymusic.constants.MiniShowCoverWaveKey] ?: true,
                         miniWavyProgress = prefs[com.mochyy.mochymusic.constants.MiniWavyProgressKey] ?: true,
-                        playerShowWave = prefs[com.mochyy.mochymusic.constants.PlayerShowWaveKey] ?: true,
-                        miniWaveStyle = prefs[com.mochyy.mochymusic.constants.MiniWaveStyleKey]
-                            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultWaveStyle,
-                        miniWaveIntensity = prefs[com.mochyy.mochymusic.constants.MiniWaveIntensityKey]
-                            ?: com.mochyy.mochymusic.ui.component.UiCustomTheme.DefaultWaveIntensity,
                     )
                 }
                 .distinctUntilChanged()
@@ -1628,12 +1621,7 @@ class MainActivity : ComponentActivity() {
                     com.mochyy.mochymusic.ui.component.UiCustomTheme.miniSpinCover = look.miniSpinCover
                     com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowVisualizer = look.miniShowVisualizer
                     com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowProgress = look.miniShowProgress
-                    com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowBgWave = look.miniShowBgWave
-                    com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowCoverWave = look.miniShowCoverWave
                     com.mochyy.mochymusic.ui.component.UiCustomTheme.miniWavyProgress = look.miniWavyProgress
-                    com.mochyy.mochymusic.ui.component.UiCustomTheme.playerShowWave = look.playerShowWave
-                    com.mochyy.mochymusic.ui.component.UiCustomTheme.miniWaveStyle = look.miniWaveStyle
-                    com.mochyy.mochymusic.ui.component.UiCustomTheme.miniWaveIntensity = look.miniWaveIntensity.coerceIn(0.35f, 1.6f)
                 }
         }
     }
@@ -1658,12 +1646,7 @@ class MainActivity : ComponentActivity() {
         val miniSpinCover: Boolean,
         val miniShowVisualizer: Boolean,
         val miniShowProgress: Boolean,
-        val miniShowBgWave: Boolean,
-        val miniShowCoverWave: Boolean,
         val miniWavyProgress: Boolean,
-        val playerShowWave: Boolean,
-        val miniWaveStyle: String,
-        val miniWaveIntensity: Float,
     )
 
     // people who had the old lyrics shader switch off land on the matching shaderless lyric style, once (off main thread)

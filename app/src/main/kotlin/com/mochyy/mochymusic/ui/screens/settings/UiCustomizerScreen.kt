@@ -35,9 +35,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.R
@@ -51,23 +49,16 @@ import com.mochyy.mochymusic.constants.CustomDockCornerKey
 import com.mochyy.mochymusic.constants.CustomGlassOpacityKey
 import com.mochyy.mochymusic.constants.CustomLyricsGlowKey
 import com.mochyy.mochymusic.constants.CustomPlayerCoverCornerKey
-import com.mochyy.mochymusic.constants.MiniShowBgWaveKey
-import com.mochyy.mochymusic.constants.MiniShowCoverWaveKey
 import com.mochyy.mochymusic.constants.MiniShowLikeKey
 import com.mochyy.mochymusic.constants.MiniShowLyricsKey
 import com.mochyy.mochymusic.constants.MiniShowProgressKey
 import com.mochyy.mochymusic.constants.MiniShowVisualizerKey
 import com.mochyy.mochymusic.constants.MiniSpinCoverKey
-import com.mochyy.mochymusic.constants.MiniWaveIntensityKey
-import com.mochyy.mochymusic.constants.MiniWaveStyleKey
 import com.mochyy.mochymusic.constants.MiniWavyProgressKey
-import com.mochyy.mochymusic.constants.PlayerShowWaveKey
-import com.mochyy.mochymusic.ui.component.AppleMusicAccent
 import com.mochyy.mochymusic.ui.component.DefaultPlayerSeekBarSlider
 import com.mochyy.mochymusic.ui.component.SettingsItem
 import com.mochyy.mochymusic.ui.component.SubSettingsScaffold
 import com.mochyy.mochymusic.ui.component.UiCustomTheme
-import com.mochyy.mochymusic.ui.player.MiniWaveStyle
 import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -113,13 +104,7 @@ fun UiCustomizerScreen(navController: NavController) {
     var miniSpinCover by rememberPreference(MiniSpinCoverKey, true)
     var miniShowVisualizer by rememberPreference(MiniShowVisualizerKey, true)
     var miniShowProgress by rememberPreference(MiniShowProgressKey, true)
-
-    var miniShowBgWave by rememberPreference(MiniShowBgWaveKey, true)
-    var miniShowCoverWave by rememberPreference(MiniShowCoverWaveKey, true)
     var miniWavyProgress by rememberPreference(MiniWavyProgressKey, true)
-    var playerShowWave by rememberPreference(PlayerShowWaveKey, true)
-    var miniWaveStyle by rememberPreference(MiniWaveStyleKey, UiCustomTheme.DefaultWaveStyle)
-    var miniWaveIntensity by rememberPreference(MiniWaveIntensityKey, UiCustomTheme.DefaultWaveIntensity)
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -436,9 +421,9 @@ fun UiCustomizerScreen(navController: NavController) {
                     },
                 ),
                 switchItem(
-                    key = "Mini player glowing progress",
-                    title = "Thanh tiến trình phát sáng",
-                    description = "Đường tiến độ gradient có điểm sáng ở cạnh đáy",
+                    key = "Mini player progress bar",
+                    title = "Thanh tiến trình ở đáy",
+                    description = "Hiển thị tiến độ bài hát dọc cạnh dưới Mini-Player",
                     icon = painterResource(R.drawable.play),
                     checked = miniShowProgress,
                     onCheckedChange = {
@@ -446,104 +431,17 @@ fun UiCustomizerScreen(navController: NavController) {
                         UiCustomTheme.miniShowProgress = it
                     },
                 ),
-            ),
-        )
-
-        // 4b. Wave Effects
-        SettingsSection(
-            title = "Hiệu ứng Sóng (Wave)",
-            items = listOf(
-                SettingsItem(
-                    title = { ValueTitle("Kiểu sóng Mini-Player", MiniWaveStyle.fromId(miniWaveStyle).label) },
+                switchItem(
+                    key = "Mini player m3 wave",
+                    title = "Sóng kiểu Material 3",
+                    description = "Thanh tiến trình uốn sóng mượt kiểu Material 3 Expressive khi đang phát",
                     icon = painterResource(R.drawable.tune),
-                    iconShape = CircleShape,
-                    description = {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 10.dp, bottom = 2.dp),
-                        ) {
-                            MiniWaveStyle.entries.forEach { preset ->
-                                val selected = miniWaveStyle == preset.id
-                                Text(
-                                    text = preset.label,
-                                    fontSize = 12.5.sp,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (selected) Color.White else Color.White.copy(alpha = 0.72f),
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(if (selected) AppleMusicAccent else Color.White.copy(alpha = 0.10f))
-                                        .clickable {
-                                            miniWaveStyle = preset.id
-                                            UiCustomTheme.miniWaveStyle = preset.id
-                                        }
-                                        .padding(horizontal = 12.dp, vertical = 7.dp),
-                                )
-                            }
-                        }
-                    },
-                ),
-                SettingsItem(
-                    title = { ValueTitle("Cường độ sóng", "${(miniWaveIntensity * 100).roundToInt()}%") },
-                    description = {
-                        DefaultPlayerSeekBarSlider(
-                            value = miniWaveIntensity.coerceIn(0.4f, 1.6f),
-                            onValueChange = {
-                                miniWaveIntensity = it
-                                UiCustomTheme.miniWaveIntensity = it
-                            },
-                            valueRange = 0.4f..1.6f,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                    },
-                    icon = painterResource(R.drawable.tune),
-                    iconShape = CircleShape,
-                ),
-                switchItem(
-                    key = "Mini player background wave",
-                    title = "Sóng nền đa lớp Mini-Player",
-                    description = "Sóng lỏng, phổ nhạc, Neon Twin & xung sonar bên trong thanh Mini-Player",
-                    icon = painterResource(R.drawable.palette),
-                    checked = miniShowBgWave,
-                    onCheckedChange = {
-                        miniShowBgWave = it
-                        UiCustomTheme.miniShowBgWave = it
-                    },
-                ),
-                switchItem(
-                    key = "Mini player cover ripple wave",
-                    title = "Sóng vòng lan tỏa quanh ảnh bìa",
-                    description = "Các vòng sóng âm thanh phát sáng lan tỏa từ đĩa ảnh bìa",
-                    icon = painterResource(R.drawable.album),
-                    checked = miniShowCoverWave,
-                    onCheckedChange = {
-                        miniShowCoverWave = it
-                        UiCustomTheme.miniShowCoverWave = it
-                    },
-                ),
-                switchItem(
-                    key = "Mini player wavy progress",
-                    title = "Thanh tiến trình uốn sóng",
-                    description = "Đường tiến trình chạy dạng sóng sin mượt khi đang phát nhạc",
-                    icon = painterResource(R.drawable.play),
                     checked = miniWavyProgress,
                     onCheckedChange = {
                         miniWavyProgress = it
                         UiCustomTheme.miniWavyProgress = it
                     },
-                ),
-                switchItem(
-                    key = "Full player aurora wave",
-                    title = "Sóng Aurora trình phát lớn",
-                    description = "3 dải sóng cực quang chuyển động ở nền trình phát toàn màn hình",
-                    icon = painterResource(R.drawable.lyrics),
-                    checked = playerShowWave,
-                    onCheckedChange = {
-                        playerShowWave = it
-                        UiCustomTheme.playerShowWave = it
-                    },
+                    subOptionOf = miniShowProgress,
                 ),
             ),
         )
@@ -572,12 +470,7 @@ fun UiCustomizerScreen(navController: NavController) {
                         miniSpinCover = true
                         miniShowVisualizer = true
                         miniShowProgress = true
-                        miniShowBgWave = true
-                        miniShowCoverWave = true
                         miniWavyProgress = true
-                        playerShowWave = true
-                        miniWaveStyle = UiCustomTheme.DefaultWaveStyle
-                        miniWaveIntensity = UiCustomTheme.DefaultWaveIntensity
                         if (bgPath.isNotBlank()) {
                             val old = File(bgPath)
                             bgPath = ""
@@ -598,12 +491,7 @@ fun UiCustomizerScreen(navController: NavController) {
                         UiCustomTheme.miniSpinCover = true
                         UiCustomTheme.miniShowVisualizer = true
                         UiCustomTheme.miniShowProgress = true
-                        UiCustomTheme.miniShowBgWave = true
-                        UiCustomTheme.miniShowCoverWave = true
                         UiCustomTheme.miniWavyProgress = true
-                        UiCustomTheme.playerShowWave = true
-                        UiCustomTheme.miniWaveStyle = UiCustomTheme.DefaultWaveStyle
-                        UiCustomTheme.miniWaveIntensity = UiCustomTheme.DefaultWaveIntensity
                         Toast.makeText(context, "Đã khôi phục giao diện mặc định", Toast.LENGTH_SHORT).show()
                     },
                 ),
