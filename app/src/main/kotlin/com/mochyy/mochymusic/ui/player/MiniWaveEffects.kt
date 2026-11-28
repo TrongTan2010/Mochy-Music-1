@@ -1,7 +1,6 @@
 package com.mochyy.mochymusic.ui.player
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -21,15 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.mochyy.mochymusic.LocalPlayerConnection
@@ -41,14 +36,9 @@ import com.mochyy.mochymusic.ui.component.MiniPillFrame
 import com.mochyy.mochymusic.ui.component.UiCustomTheme
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.math.cos
-import kotlin.math.floor
 import kotlin.math.sin
 
-private const val M3TonalWavePeriodMs = 1900L
-private const val M3CoverRingPeriodMs = 4800L
-private const val M3ProgressWavePeriodMs = 950L
+private const val M3ProgressWavePeriodMs = 1100L
 
 @Stable
 private class WaveClockState(initialScale: Float) {
@@ -57,9 +47,8 @@ private class WaveClockState(initialScale: Float) {
 }
 
 /**
- * Self-contained wall-clock frame driver for Material 3 wave motion.
- * Read exclusively inside Canvas draw scopes -> zero recompositions per frame, pure 60/120fps draw invalidation.
- * Never stalls when system/app animator duration scale is 0 and smoothly eases wave amplitude on play/pause.
+ * Self-contained wall-clock frame driver for subtle Mini-Player motion.
+ * Read exclusively inside Canvas draw scopes -> zero recompositions per frame, smooth 60/120fps draw invalidation.
  */
 @Composable
 private fun rememberWaveClock(active: Boolean, running: Boolean): WaveClockState {
@@ -92,175 +81,9 @@ private fun rememberWaveClock(active: Boolean, running: Boolean): WaveClockState
 }
 
 /**
- * Clean Material 3 Expressive tonal wave gliding smoothly across the lower area of the Mini-Player capsule.
- * Draws directly without an extra graphicsLayer so GPU RenderNode caching never freezes frames.
- */
-@Composable
-internal fun MiniM3TonalWave(
-    progressProvider: () -> Float,
-    dockShiftPx: () -> Float,
-    dockEndShiftPx: () -> Float,
-    fullWidthPx: Float,
-    pillFrame: MiniPillFrame,
-    isPlaying: Boolean,
-) {
-    if (!UiCustomTheme.miniWavyProgress) return
-    val playerConnection = LocalPlayerConnection.current ?: return
-    val visible by remember { derivedStateOf { progressProvider() < 0.22f } }
-    if (!visible) return
-
-    val effectivelyPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
-    val playing = isPlaying || effectivelyPlaying
-    val waveClock = rememberWaveClock(active = visible, running = playing)
-
-    val accent = AppleMusicAccent
-    val density = LocalDensity.current
-    val startPx = with(density) { pillFrame.start.toPx() }
-    val endPx = with(density) { pillFrame.end.toPx() }
-    val heightPx = with(density) { pillFrame.height.toPx() }
-    val pathFront = remember { Path() }
-    val pathBack = remember { Path() }
-
-    Canvas(
-        modifier = Modifier
-            .zIndex(0.5f)
-            .layout { measurable, constraints ->
-                val p = progressProvider()
-                val left = floor((startPx + dockShiftPx()) * (1f - p)).toInt()
-                val right = ceil(fullWidthPx - (endPx + dockEndShiftPx()) * (1f - p)).toInt()
-                val w = (right - left).coerceAtLeast(1)
-                val h = ceil(heightPx).toInt().coerceAtLeast(1)
-                val placeable = measurable.measure(Constraints.fixed(w, h))
-                layout(constraints.maxWidth, constraints.maxHeight) {
-                    placeable.place(left, 0)
-                }
-            }
-    ) {
-        val layerAlpha = (1f - progressProvider() / 0.22f).coerceIn(0f, 1f)
-        if (layerAlpha <= 0.01f) return@Canvas
-        val w = size.width
-        val h = size.height
-        if (w <= 4f || h <= 4f) return@Canvas
-
-        val clockMs = waveClock.clockMs
-        val waveScale = waveClock.scale
-        val t = (clockMs % M3TonalWavePeriodMs).toFloat() / M3TonalWavePeriodMs.toFloat()
-        val phase = t * 2f * PI.toFloat()
-        val liveScale = (0.18f + 0.82f * waveScale).coerceIn(0f, 1f)
-        val ampBack = 5.5.dp.toPx() * liveScale
-        val ampFront = 7.2.dp.toPx() * liveScale
-        val wavelength = 42.dp.toPx()
-        val steps = 44
-
-        // Back subtle Material 3 tonal echo wave
-        val backBaseY = h * 0.64f
-        pathBack.reset()
-        for (i in 0..steps) {
-            val u = i.toFloat() / steps
-            val x = u * w
-            val y = backBaseY + sin((x / wavelength) * 2f * PI.toFloat() - phase * 0.82f + 1.9f) * ampBack
-            if (i == 0) pathBack.moveTo(x, y) else pathBack.lineTo(x, y)
-        }
-        pathBack.lineTo(w, h)
-        pathBack.lineTo(0f, h)
-        pathBack.close()
-        drawPath(
-            path = pathBack,
-            brush = Brush.verticalGradient(
-                0f to accent.copy(alpha = (0.16f + 0.12f * waveScale) * layerAlpha),
-                1f to accent.copy(alpha = 0.02f * layerAlpha),
-                startY = h * 0.42f,
-                endY = h,
-            ),
-        )
-
-        // Front Material 3 Expressive tonal wave + crisp rounded crest contour
-        val frontBaseY = h * 0.72f
-        pathFront.reset()
-        for (i in 0..steps) {
-            val u = i.toFloat() / steps
-            val x = u * w
-            val y = frontBaseY + sin((x / wavelength) * 2f * PI.toFloat() - phase) * ampFront
-            if (i == 0) pathFront.moveTo(x, y) else pathFront.lineTo(x, y)
-        }
-        drawPath(
-            path = pathFront,
-            color = accent.copy(alpha = (0.28f + 0.46f * waveScale) * layerAlpha),
-            style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
-        )
-        pathFront.lineTo(w, h)
-        pathFront.lineTo(0f, h)
-        pathFront.close()
-        drawPath(
-            path = pathFront,
-            brush = Brush.verticalGradient(
-                0f to accent.copy(alpha = (0.24f + 0.14f * waveScale) * layerAlpha),
-                1f to accent.copy(alpha = 0.05f * layerAlpha),
-                startY = h * 0.48f,
-                endY = h,
-            ),
-        )
-    }
-}
-
-/**
- * Material 3 Expressive 10-lobe scalloped/wavy circular ring rotating smoothly around the circular cover art.
- */
-@Composable
-internal fun MiniM3CoverWavyRing(
-    progressProvider: () -> Float,
-    centerProvider: () -> Offset,
-    baseRadiusPx: Float,
-    isPlaying: Boolean,
-) {
-    if (!UiCustomTheme.miniWavyProgress) return
-    val playerConnection = LocalPlayerConnection.current ?: return
-    val visible by remember { derivedStateOf { progressProvider() < 0.18f } }
-    if (!visible) return
-
-    val effectivelyPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
-    val playing = isPlaying || effectivelyPlaying
-    val waveClock = rememberWaveClock(active = visible, running = playing)
-
-    val accent = AppleMusicAccent
-    val ringPath = remember { Path() }
-
-    Canvas(
-        modifier = Modifier
-            .zIndex(1.5f)
-            .fillMaxSize()
-    ) {
-        val waveScale = waveClock.scale
-        if (waveScale <= 0.01f) return@Canvas
-        val layerAlpha = (1f - progressProvider() / 0.18f).coerceIn(0f, 1f) * waveScale
-        if (layerAlpha <= 0.01f) return@Canvas
-        val center = centerProvider()
-        val rot = ((waveClock.clockMs % M3CoverRingPeriodMs).toFloat() / M3CoverRingPeriodMs.toFloat()) * 2f * PI.toFloat()
-        val lobes = 10
-        val rBase = baseRadiusPx + 2.6.dp.toPx()
-        val rAmp = 1.7.dp.toPx() * waveScale
-        val segments = 72
-        ringPath.reset()
-        for (i in 0..segments) {
-            val theta = (i.toFloat() / segments) * 2f * PI.toFloat()
-            val r = rBase + sin(lobes * theta - rot) * rAmp
-            val x = center.x + cos(theta) * r
-            val y = center.y + sin(theta) * r
-            if (i == 0) ringPath.moveTo(x, y) else ringPath.lineTo(x, y)
-        }
-        ringPath.close()
-        drawPath(
-            path = ringPath,
-            color = accent.copy(alpha = 0.92f * layerAlpha),
-            style = Stroke(width = 2.1.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
-        )
-    }
-}
-
-/**
- * High-clarity Material 3 Expressive wavy progress indicator along the lower edge of the Mini-Player.
- * Drawn directly on Canvas with wall-clock frame timing so it NEVER freezes on zero animator scale
- * and remains unmistakably wavy from 1% to 100% of any song.
+ * Sleek, low-profile hairline progress bar tucked cleanly along the flat bottom edge of the Mini-Player capsule.
+ * Never collides with cover art, text, or capsule corners. When [UiCustomTheme.miniWavyProgress] is enabled,
+ * draws a delicate tapered micro-wave; otherwise draws a crisp straight line.
  */
 @Composable
 internal fun MiniWavyProgressBar(
@@ -270,7 +93,7 @@ internal fun MiniWavyProgressBar(
 ) {
     if (!UiCustomTheme.miniShowProgress) return
     val playerConnection = LocalPlayerConnection.current ?: return
-    val visible by remember { derivedStateOf { progressProvider() < 0.25f } }
+    val visible by remember { derivedStateOf { progressProvider() < 0.22f } }
     if (!visible) return
 
     val progressState by playerConnection.uiState.progressState.collectAsState()
@@ -294,42 +117,50 @@ internal fun MiniWavyProgressBar(
             .fillMaxWidth()
             .height(pillFrame.height)
     ) {
-        val layerAlpha = (1f - progressProvider() / 0.25f).coerceIn(0f, 1f)
+        val layerAlpha = (1f - progressProvider() / 0.22f).coerceIn(0f, 1f)
         if (layerAlpha <= 0.01f) return@Canvas
 
         val c = dockCollapse().coerceIn(0f, 1f)
         val extraStart = if (pillFrame.merged) 0f else DockOrbClearance.toPx() * c
         val extraEnd = if (pillFrame.merged || !showCollapsedSearch) 0f else DockOrbClearance.toPx() * c
-        val leftInset = (pillFrame.start + 20.dp).toPx() + extraStart
-        val rightInset = (pillFrame.end + 20.dp).toPx() + extraEnd
+        // Stay strictly inside the flat bottom chord of the 60dp capsule (30dp corner radius)
+        val leftInset = (pillFrame.start + 26.dp).toPx() + extraStart
+        val rightInset = (pillFrame.end + 26.dp).toPx() + extraEnd
         val barWidth = (size.width - leftInset - rightInset).coerceAtLeast(0f)
-        if (barWidth <= 2f) return@Canvas
+        if (barWidth <= 4f) return@Canvas
 
-        val strokeW = 2.6.dp.toPx()
-        val centerY = size.height - 6.5.dp.toPx()
+        val strokeW = 2.dp.toPx()
+        val centerY = size.height - 4.2.dp.toPx()
         val endX = leftInset + barWidth
-        val gapPx = 5.0.dp.toPx()
+        val thumbX = leftInset + barWidth * fraction
 
-        // Ensure at least a visible wavy stub right when playback begins
-        val effectiveFraction = if (playing && fraction < 0.08f) maxOf(fraction, 0.08f) else fraction
-        val thumbX = leftInset + barWidth * effectiveFraction
-        val waveScale = waveClock.scale
-        val phase = (waveClock.clockMs % M3ProgressWavePeriodMs).toFloat() / M3ProgressWavePeriodMs.toFloat()
+        // 1. Subtle full-width background track
+        drawLine(
+            color = Color.White.copy(alpha = 0.14f * layerAlpha),
+            start = Offset(leftInset, centerY),
+            end = Offset(endX, centerY),
+            strokeWidth = strokeW,
+            cap = StrokeCap.Round,
+        )
 
-        // 1. Active played segment — crisp Material 3 Expressive sine wave (3.4dp amplitude, 13dp wavelength)
-        val activeEnd = (thumbX - gapPx * 0.45f).coerceAtLeast(leftInset)
-        val drawableLen = (activeEnd - leftInset).coerceAtLeast(0f)
+        // 2. Active played segment — crisp straight hairline or subtle tapered micro-wave
+        val drawableLen = (thumbX - leftInset).coerceAtLeast(0f)
         if (drawableLen > 0.5f) {
-            if (wavy && waveScale > 0.01f && drawableLen > 2.dp.toPx()) {
-                val wavelength = 13.dp.toPx()
-                val amplitude = 3.4.dp.toPx() * waveScale
-                val step = 1.4.dp.toPx()
+            val waveScale = waveClock.scale
+            if (wavy && waveScale > 0.01f && drawableLen > 6.dp.toPx()) {
+                val wavelength = 12.dp.toPx()
+                val maxAmp = 1.15.dp.toPx() * waveScale
+                val taperPx = 6.dp.toPx()
+                val step = 1.5.dp.toPx()
+                val phase = (waveClock.clockMs % M3ProgressWavePeriodMs).toFloat() / M3ProgressWavePeriodMs.toFloat()
+
                 wavePath.reset()
                 var px = 0f
                 var first = true
                 while (px < drawableLen) {
+                    val edgeTaper = minOf(px / taperPx, (drawableLen - px) / taperPx, 1f).coerceIn(0f, 1f)
                     val t = px / wavelength - phase
-                    val y = centerY + sin(t * 2f * PI.toFloat()) * amplitude
+                    val y = centerY + sin(t * 2f * PI.toFloat()) * maxAmp * edgeTaper
                     if (first) {
                         wavePath.moveTo(leftInset + px, y)
                         first = false
@@ -338,64 +169,43 @@ internal fun MiniWavyProgressBar(
                     }
                     px += step
                 }
-                val endT = drawableLen / wavelength - phase
-                wavePath.lineTo(leftInset + drawableLen, centerY + sin(endT * 2f * PI.toFloat()) * amplitude)
+                wavePath.lineTo(leftInset + drawableLen, centerY)
                 drawPath(
                     path = wavePath,
-                    color = accent.copy(alpha = layerAlpha),
+                    color = accent.copy(alpha = 0.92f * layerAlpha),
                     style = Stroke(width = strokeW, cap = StrokeCap.Round, join = StrokeJoin.Round),
                 )
             } else {
                 drawLine(
-                    color = accent.copy(alpha = layerAlpha),
+                    color = accent.copy(alpha = 0.92f * layerAlpha),
                     start = Offset(leftInset, centerY),
-                    end = Offset(activeEnd, centerY),
+                    end = Offset(thumbX, centerY),
                     strokeWidth = strokeW,
                     cap = StrokeCap.Round,
                 )
             }
         }
 
-        // 2. Inactive remaining track — flat Material 3 track after clean gap + stop dot
-        val inactiveStart = (thumbX + gapPx * 0.75f).coerceAtMost(endX)
-        if (endX - inactiveStart > 1.dp.toPx()) {
-            drawLine(
-                color = Color.White.copy(alpha = 0.26f * layerAlpha),
-                start = Offset(inactiveStart, centerY),
-                end = Offset(endX, centerY),
-                strokeWidth = strokeW,
-                cap = StrokeCap.Round,
-            )
+        // 3. Delicate round tip indicator at playhead (no oversized vertical bar)
+        if (fraction in 0.005f..0.995f) {
             drawCircle(
-                color = accent.copy(alpha = 0.90f * layerAlpha),
-                radius = strokeW * 0.56f,
-                center = Offset(endX, centerY),
-            )
-        }
-
-        // 3. Crisp Material 3 Expressive vertical pill thumb at playhead
-        if (effectiveFraction > 0.002f && effectiveFraction < 0.998f) {
-            val thumbHalfH = 4.2.dp.toPx()
-            drawLine(
-                color = Color.White.copy(alpha = layerAlpha),
-                start = Offset(thumbX, centerY - thumbHalfH),
-                end = Offset(thumbX, centerY + thumbHalfH),
-                strokeWidth = 2.6.dp.toPx(),
-                cap = StrokeCap.Round,
+                color = Color.White.copy(alpha = 0.94f * layerAlpha),
+                radius = 1.9.dp.toPx(),
+                center = Offset(thumbX, centerY),
             )
         }
     }
 }
 
-/** Clean 3-bar minimal equalizer indicator beside the Mini-Player song title. */
+/** Clean 3-bar minimal equalizer indicator beside the Mini-Player song title (full-width pill only). */
 @Composable
 internal fun MiniWaveEqualizerBars() {
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
     val waveClock = rememberWaveClock(active = true, running = isPlaying)
     val accent = AppleMusicAccent
-    Canvas(modifier = Modifier.size(width = 11.dp, height = 11.dp)) {
-        val barW = 2.2.dp.toPx()
+    Canvas(modifier = Modifier.size(width = 9.5.dp, height = 9.5.dp)) {
+        val barW = 2.dp.toPx()
         val gap = (size.width - barW * 3f) / 2f
         val p = (waveClock.clockMs % 100_000L) / 1000f * 6.5f
         val heights = if (isPlaying) {

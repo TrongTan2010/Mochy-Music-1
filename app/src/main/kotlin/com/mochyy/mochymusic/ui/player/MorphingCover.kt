@@ -389,7 +389,7 @@ private fun Modifier.morphLayout(
             val shift = endpointsPx.dockShiftPx()
             val endShift = endpointsPx.dockEndShiftPx()
             val threeSlot = endpointsPx.compactThreeSlot()
-            val dockCollapsed = (shift > 1f).let { if (it) (shift / (58f * endpointsPx.dpPx)).coerceIn(0f, 1f) else 0f }
+            val dockCollapsed = (shift > 1f).let { if (it) (shift / (66f * endpointsPx.dpPx)).coerceIn(0f, 1f) else 0f }
             val skipBonus = (endpointsPx.miniSkipXPx - endpointsPx.miniPlayXPx) * threeSlot
             val likeBonus = if (com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowLike) {
                 (endpointsPx.miniPlayXPx - endpointsPx.miniPrevXPx) * dockCollapsed
@@ -534,12 +534,8 @@ fun MorphingCover(
     val pillFrame = com.mochyy.mochymusic.ui.component.LocalMiniPillFrame.current
     // the wide bar's pill shrinks on a short screen, and the mini player's cover and buttons with it
     val miniScale = pillFrame.height / com.mochyy.mochymusic.constants.MiniPlayerHeight
-    val targetMiniArtWidth = if (isVideoActive) (44.dp * miniScale * 16f / 9f) else 44.dp * miniScale
-    val animatedMiniArtWidth by animateDpAsState(
-        targetValue = targetMiniArtWidth,
-        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-        label = "miniArtWidth"
-    )
+    // Always keep the Mini-Player thumbnail a compact 44dp circle (even on video tracks) so text never gets squeezed
+    val miniArtSquare = 44.dp * miniScale
 
     val miniShowLike = com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowLike
     val miniSpinCover = com.mochyy.mochymusic.ui.component.UiCustomTheme.miniSpinCover
@@ -560,11 +556,11 @@ fun MorphingCover(
         }
     }
 
-    val endpoints = remember(maxWidth, maxHeight, statusBarTop, coverStyle, animatedMiniArtWidth, pillFrame, miniShowLike) {
+    val endpoints = remember(maxWidth, maxHeight, statusBarTop, coverStyle, miniArtSquare, pillFrame, miniShowLike) {
         val miniHeight = pillFrame.height
-        val miniArtWidth = animatedMiniArtWidth
-        val miniArtHeight = 44.dp * miniScale
-        // 8dp concentric inset around the 44dp circular-rounded cover inside the 60dp pill (radius 30dp = 22dp + 8dp)
+        val miniArtWidth = miniArtSquare
+        val miniArtHeight = miniArtSquare
+        // 8dp concentric inset around the 44dp circular cover inside the 60dp pill (radius 30dp = 22dp + 8dp)
         val miniArtX = pillFrame.start + 8.dp
         val miniArtY = (miniHeight - miniArtHeight) / 2
 
@@ -576,9 +572,9 @@ fun MorphingCover(
         val miniPlayY = (miniHeight - miniPlaySize) / 2
         val miniPrevX = miniPlayX - 8.dp - miniSkipSize
 
-        val miniTextX = miniArtX + miniArtWidth + 12.dp
+        val miniTextX = miniArtX + miniArtWidth + 10.dp
         val firstButtonX = if (pillFrame.withPrevious || miniShowLike) miniPrevX else miniPlayX
-        val miniTextWidth = (firstButtonX - 10.dp - miniTextX).coerceAtLeast(0.dp)
+        val miniTextWidth = (firstButtonX - 8.dp - miniTextX).coerceAtLeast(0.dp)
 
         val artBox = coverArtBox(coverStyle, maxWidth, maxHeight, statusBarTop)
 
@@ -773,15 +769,6 @@ fun MorphingCover(
             pureBlack = pureBlack,
         )
 
-        MiniM3TonalWave(
-            progressProvider = progressProvider,
-            dockShiftPx = endpointsPx.dockShiftPx,
-            dockEndShiftPx = endpointsPx.dockEndShiftPx,
-            fullWidthPx = endpointsPx.fullWidthPx,
-            pillFrame = pillFrame,
-            isPlaying = isPlaying,
-        )
-
         // a look's own mini player draws in the pill in place of mochy's words and buttons; the cover stays mochy's, so it still grows into the player
         val moduleMini = com.mochyy.mochymusic.modules.skin.ActiveSkin.mini?.takeIf { !pillFrame.merged }
         if (moduleMini != null) {
@@ -913,15 +900,6 @@ fun MorphingCover(
         // where the style itself shows. It stays composed above that, at alpha 0: built at 42% it was
         // a heavy frame in the middle of every close, and dropped there in the middle of every open.
         if (trackInfo.thumbnailUrl != null || isDiscStyle) {
-            MiniM3CoverWavyRing(
-                progressProvider = progressProvider,
-                centerProvider = {
-                    val rect = endpointsPx.artRect(progressProvider(), horizontalOffsetProvider(), lyricsProgressProvider())
-                    Offset(rect[0] + rect[2] / 2f, rect[1] + rect[3] / 2f)
-                },
-                baseRadiusPx = endpointsPx.miniArtHeightPx / 2f,
-                isPlaying = isPlaying,
-            )
             Box(
                 modifier = Modifier
                     .morphLayout(
@@ -943,8 +921,9 @@ fun MorphingCover(
                             translationY = -18.dp.toPx() * hidden
                         }
 
-                        scaleX = animatedPauseScale
-                        scaleY = animatedPauseScale
+                        val pauseScale = lerpF(1f, animatedPauseScale, p)
+                        scaleX = pauseScale
+                        scaleY = pauseScale
                         val spinWeight = if (miniSpinCover && !isVideoActive) (1f - p / 0.14f).coerceIn(0f, 1f) else 0f
                         if (spinWeight > 0.001f) {
                             val rawAngle = miniSpinAngle.floatValue
@@ -1275,6 +1254,7 @@ fun MorphingCover(
                 progressProvider = progressProvider,
                 horizontalOffsetProvider = horizontalOffsetProvider,
                 endpointsPx = endpointsPx,
+                dockCollapse = dockCollapse,
             )
 
             MiniWavyProgressBar(
@@ -1475,11 +1455,13 @@ private fun MiniSongInfo(
     progressProvider: () -> Float,
     horizontalOffsetProvider: () -> Float,
     endpointsPx: MorphEndpointsPx,
+    dockCollapse: () -> Float,
 ) {
     // The mini player's title is fully faded once the sheet is halfway open, yet it was still
     // measured at a new width (re-laying its text out) and drawn through its offscreen fade
     // layer on every frame of the rest of the open and close.
     val miniTextShown by remember { derivedStateOf { progressProvider() < 0.5f } }
+    val isCompactDock by remember { derivedStateOf { dockCollapse() > 0.35f } }
     if (miniTextShown) Box(
         modifier = Modifier
             .morphLayout(
@@ -1497,7 +1479,7 @@ private fun MiniSongInfo(
 
                 val fade = Brush.horizontalGradient(
                     0f to Color.Black,
-                    0.82f to Color.Black,
+                    0.85f to Color.Black,
                     1f to Color.Transparent,
                 )
                 onDrawWithContent {
@@ -1509,7 +1491,14 @@ private fun MiniSongInfo(
     ) {
         // the leaving and arriving songs' lines ride the row with the cover
         if (carousel == null) {
-            MiniSongLines(trackInfo.title, trackInfo.artist, trackInfo.album, Modifier, isActiveSlot = true)
+            MiniSongLines(
+                title = trackInfo.title,
+                artist = trackInfo.artist,
+                album = trackInfo.album,
+                modifier = Modifier,
+                isActiveSlot = true,
+                isCompact = isCompactDock,
+            )
         } else {
             for (slot in rememberTextSlots(carousel)) {
                 key(slot.uid) {
@@ -1519,6 +1508,7 @@ private fun MiniSongInfo(
                         album = slot.album,
                         modifier = Modifier.carouselText(carousel, slot),
                         isActiveSlot = slot.step == carousel.step,
+                        isCompact = isCompactDock,
                     )
                 }
             }
@@ -1580,21 +1570,24 @@ private fun MiniSongLines(
     album: String,
     modifier: Modifier,
     isActiveSlot: Boolean = true,
+    isCompact: Boolean = false,
 ) {
     val showVisualizer = com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowVisualizer
     val showLyrics = com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowLyrics
+    val showProgress = com.mochyy.mochymusic.ui.component.UiCustomTheme.miniShowProgress
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .wrapContentHeight(Alignment.CenterVertically),
+            .wrapContentHeight(Alignment.CenterVertically)
+            .padding(bottom = if (showProgress) 3.dp else 0.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         androidx.compose.foundation.layout.Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            if (isActiveSlot && showVisualizer) {
+            if (isActiveSlot && showVisualizer && !isCompact) {
                 MiniWaveEqualizerBars()
             }
             Text(
